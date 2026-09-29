@@ -1,0 +1,9 @@
+# Dữ liệu thu thập, ảnh và file dựng ra — không đưa vào git
+data/
+screenshots/
+snapshots/
+runs/
+output/
+legacy/
+__pycache__/
+.pytest_cache/
