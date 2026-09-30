@@ -61,7 +61,10 @@ EXTRACT = r"""
   const bestN = body === document.body ? 0 : pText(body);
   const known = KNOWN.flatMap(sel => { const els = [...document.querySelectorAll(sel)]; return els.length <= 2 ? els : []; })
     .filter(el => !outside(el)).map(el => ({el, n: pText(el)}))
-    .filter(x => x.n > 400 && (x.n >= bestN * 0.5 || x.el.contains(body) || body.contains(x.el))).sort((a, b) => b.n - a.n);
+    .map(x => ({...x, imgs: [...x.el.querySelectorAll('img')].filter(i => i.getBoundingClientRect().width >= 300).length}))
+    // khung thân bài chỉ gồm ẢNH văn bản (thông báo, công văn chụp) cũng nhận, dù ít chữ
+    .filter(x => (x.n > 400 || x.imgs > 0) && (x.n >= bestN * 0.5 || x.imgs > 0 || x.el.contains(body) || body.contains(x.el)))
+    .sort((a, b) => (b.n + b.imgs * 2000) - (a.n + a.imgs * 2000));
   if (known.length) body = known[0].el;
   const h1s = [...document.querySelectorAll('h1')].filter(h => h.getClientRects().length);
   const br = body.getBoundingClientRect();
@@ -107,6 +110,10 @@ EXTRACT = r"""
     text: (h1 ? h1.innerText.trim() + '\n\n' : '') + cleanText, cut_tail: !!tail,
     region: {x: left, y: r1.top + scrollY - 8, width: right - left, height: (cutAt || r2.bottom) - r1.top + 16},
     body_is_page: body === document.body,
+    doc_images: [...body.querySelectorAll('img')].map(i => ({i, r: i.getBoundingClientRect()}))
+      .filter(({i, r}) => r.width >= 300 && (i.naturalWidth || 0) >= 800 && (!cutAt || r.top < cutAt))
+      .slice(0, 30).map(({i, r}) => ({x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height,
+                                       src: i.currentSrc || i.src, alt: i.alt || null, natural: [i.naturalWidth, i.naturalHeight]})),
   };
 }
 """
@@ -159,6 +166,12 @@ def main(argv=None) -> int:
                 if any(b.lower() in (title + page.evaluate("document.body.innerText.slice(0,2000)")).lower() for b in BLOCK):
                     index[c["url"]] = {"blocked": page.url}
                     continue
+                page.evaluate("async () => { for (let i = 0; i < 25 && innerHeight + scrollY < document.body.scrollHeight - 5; i++) "
+                              "{ scrollBy(0, 1200); await new Promise(r => setTimeout(r, 250)); } scrollTo(0, 0); }")
+                page.wait_for_timeout(800)
+                # thanh menu dính, nút liên hệ nổi, hộp chat… không che nội dung trong ảnh chụp
+                page.evaluate("() => document.querySelectorAll('body *').forEach(e => { const p = getComputedStyle(e).position; "
+                              "if (p === 'fixed' || p === 'sticky') e.style.setProperty('visibility', 'hidden', 'important'); })")
                 info = page.evaluate(EXTRACT)
             except Exception as exc:
                 index[c["url"]] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}",
@@ -175,7 +188,8 @@ def main(argv=None) -> int:
             final = info["canonical"] or info["final"]
             key = key_of(final)
             out = root / key
-            matched, lacking = match_keywords(f"{info['title']}\n{info['text']}", config)
+            # tên trang ("Roxana Plaza") cũng tính — trang thông báo của CĐT thường chỉ có ảnh văn bản, ít chữ
+            matched, lacking = match_keywords(f"{info['title']}\n{info['site']}\n{info['text']}", config)
             meta = {**info, "candidate": c, "key": key, "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S+07:00"),
                     "keywords": matched, "lacking_context": lacking, "relevant": bool(matched)}
             meta.pop("text")
@@ -209,6 +223,17 @@ def main(argv=None) -> int:
                     cdp = ctx.new_cdp_session(page)
                     continue
                 meta["shots"] = parts
+                att = []  # từng ảnh văn bản chụp riêng ở độ phân giải 2x để đọc được chữ
+                for k, im in enumerate(info.get("doc_images") or [], 1):
+                    try:
+                        data = cdp.send("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True,
+                                        "clip": {"x": im["x"], "y": im["y"], "width": im["w"], "height": min(im["h"], 8000), "scale": 2}})["data"]
+                        f = out / f"attach_{k:02d}.png"
+                        f.write_bytes(base64.b64decode(data))
+                        att.append({"file": str(f), "at": time.strftime("%H:%M:%S"), "src": im["src"], "alt": im["alt"]})
+                    except Exception:
+                        continue
+                meta["attach_shots"] = att
             (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
             index[c["url"]] = {"key": key, "relevant": bool(matched)}
             index_f.write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")

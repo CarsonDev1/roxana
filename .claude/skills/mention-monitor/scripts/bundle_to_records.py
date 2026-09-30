@@ -269,11 +269,17 @@ def article_draft(bundle: Path) -> dict:
         "container_name": site, "author_name": meta.get("author") or site, "author_url": None, "author_kind": "page",
         "posted_at_raw": meta.get("published") or cand.get("published") or "", "posted_at": posted,
         "posted_at_precision": precision, "text": (bundle / "article.txt").read_text(encoding="utf-8"),
-        "attachments": [], "metrics": {}, "captured_at": meta.get("captured_at"),
+        "attachments": [{"kind": "image", "description": a.get("alt") or "Ảnh văn bản trong bài", "transcribed_text": None,
+                         "url": a.get("src")} for a in meta.get("attach_shots") or []],
+        "metrics": {}, "captured_at": meta.get("captured_at"),
         "evidence": [{"file": str(bundle / Path(s["file"]).name), "kind": "post",
                       "shows": f"Bài báo — tiêu đề và nội dung (phần {i}/{len(meta.get('shots') or [])})",
                       "captured_at": f"{date}T{s['at']}+07:00" if date and s.get("at") else None,
-                      "capture_tool": "playwright"} for i, s in enumerate(meta.get("shots") or [], 1)],
+                      "capture_tool": "playwright"} for i, s in enumerate(meta.get("shots") or [], 1)]
+                    + [{"file": str(bundle / Path(a["file"]).name), "kind": "attach",
+                        "shows": f"Ảnh văn bản trong bài, chụp riêng 2x ({i}/{len(meta.get('attach_shots') or [])})",
+                        "captured_at": f"{date}T{a['at']}+07:00" if date and a.get("at") else None,
+                        "capture_tool": "playwright"} for i, a in enumerate(meta.get("attach_shots") or [], 1)],
         "snapshot_file": str(bundle / "article.txt"),
         "notes": f"Tiêu đề: {meta.get('title')}. Bản HTML gốc lưu kèm: {bundle / 'article.html'}",
     }
@@ -283,6 +289,10 @@ def apply_article(project: Project, bundle: Path, cls: dict, run_id: str) -> dic
     config = project.load_config()
     src = article_draft(Path(bundle))
     _merge(src, cls.get("source") or {}, "bài báo")
+    for i, t in (cls["source"].get("transcriptions") or {}).items():  # chữ chép lại từ ảnh văn bản attach_NN
+        idx = int(i) - 1
+        if 0 <= idx < len(src["attachments"]):
+            src["attachments"][idx]["transcribed_text"] = t
     src["keywords_matched"], _ = match_keywords(src["text"], config)
     src.update({k: cls[k] for k in ("supersedes", "supersedes_reason") if cls.get(k)})
     [res] = add_records(project, [src], run_id, config)
