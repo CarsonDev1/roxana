@@ -31,13 +31,16 @@ TIME_LINK_RE = re.compile(r"facebook\.com/(?:groups/[^/?]+/?|[^/?]+/?)\?__cft__"
 
 HEADER = r"""
 () => {
-  const h1 = document.querySelector('h1');
+  // tên nhóm: h1 trong vùng chính; bỏ tiêu đề của khung chat/thông báo ("Đoạn chat"…) mà Facebook cũng đặt là h1
+  const NOT_NAME = /^(Đoạn chat|Chats|Thông báo|Notifications|Messenger)$/i;
+  const h1 = [...document.querySelectorAll('[role="main"] h1'), ...document.querySelectorAll('h1')]
+      .find(h => h.getClientRects().length && h.innerText.trim() && !NOT_NAME.test(h.innerText.trim())) || null;
   const txt = document.body.innerText;
   const privacy = /Nhóm Riêng tư|Private group/i.test(txt) ? 'private' : /Nhóm Công khai|Public group/i.test(txt) ? 'public' : 'unknown';
   const m = txt.match(/([\d.,]+\s*[KkNn]?)\s*(thành viên|members)/);
   const join = [...document.querySelectorAll('[role="button"]')].map(b => b.innerText.trim())
       .find(t => /^(Tham gia nhóm|Join group|Đã tham gia|Joined|Đã gửi yêu cầu|Hủy yêu cầu)$/.test(t)) || null;
-  return {name: h1 ? h1.innerText.trim() : document.title, privacy, members: m ? m[1] : null, join_button: join};
+  return {name: h1 ? h1.innerText.trim() : document.title.replace(/^\(\d+\)\s*/, '').replace(/\s*\|\s*Facebook$/, ''), privacy, members: m ? m[1] : null, join_button: join};
 }
 """
 
