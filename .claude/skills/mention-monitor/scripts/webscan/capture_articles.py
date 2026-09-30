@@ -178,6 +178,11 @@ def main(argv=None) -> int:
             meta = {**info, "candidate": c, "key": key, "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S+07:00"),
                     "keywords": matched, "lacking_context": lacking, "relevant": bool(matched)}
             meta.pop("text")
+            if (out / "meta.json").exists():  # một link khác dẫn tới cùng bài đã chụp → giữ bản đã có, không ghi đè
+                index[c["url"]] = {"key": key, "relevant": json.loads((out / "meta.json").read_text(encoding="utf-8")).get("relevant"),
+                                   "same_as_existing": True}
+                index_f.write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
+                continue
             out.mkdir(parents=True, exist_ok=True)
             if matched and not (out / "meta.json").exists():
                 (out / "article.txt").write_text(info["text"], encoding="utf-8")
