@@ -168,8 +168,10 @@ def _check_references(project: Project, rec: dict, by_id: dict[str, dict],
     sup = rec.get("supersedes")
     if sup:
         target = by_id.get(sup, {})
-        if target.get("record_type") != "source" or target.get("origin") != "legacy":
-            errors.append(f"supersedes={sup} phải là mã một bài nhập từ file cũ (origin=legacy)")
+        if target.get("record_type") != "source":
+            errors.append(f"supersedes={sup} phải là mã một bài (source) có trong kho")
+        elif target.get("origin") != "legacy" and not rec.get("supersedes_reason"):
+            errors.append(f"Thay cho một bản quét ({sup}) cần supersedes_reason — vd bản chụp đầu lấy nhầm nội dung")
     return errors
 
 
@@ -247,6 +249,8 @@ def add_records(project: Project, incoming: list[dict], run_id: str, config: dic
         if existing is not None:
             if existing.get("origin") == "legacy" and rec["origin"] == "scan" and rec["record_type"] == "source":
                 rec["supersedes"] = existing["id"]
+            elif rec.get("supersedes") == existing["id"] and rec.get("supersedes_reason"):
+                pass  # bản quét sửa lỗi thay cho bản quét trước (bản trước vẫn giữ trong kho, không hiển thị)
             else:
                 results.append({"index": i, "status": "duplicate", "existing_id": existing["id"]})
                 batch_ids.append(existing["id"])

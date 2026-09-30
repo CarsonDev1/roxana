@@ -162,3 +162,22 @@ def test_evidence_time_defaults_to_file_time_not_record_time(project, make_png):
     records, _ = read_records(project.records_path)
     stored = next(r for r in records if r["id"] == res["id"])
     assert stored["evidence"][0]["captured_at"] == "2026-09-29T09:53:37+07:00"
+
+
+def test_scan_can_supersede_a_faulty_scan_with_a_reason(project, make_png):
+    from view import build_view
+    first = _source(project, make_png, n=90)
+    rec = fb_source([ev(make_png("fix.png"))], url="https://www.facebook.com/groups/1/posts/90/",
+                    supersedes=first["id"], supersedes_reason="Bản chụp đầu lấy nhầm khung tin khác")
+    [res] = _add(project, [rec])
+    assert res["status"] == "added" and res["supersedes"] == first["id"]
+    records, _ = read_records(project.records_path)
+    view = build_view(records)
+    assert [s["id"] for s in view.sources] == [res["id"]]
+
+
+def test_supersede_of_a_scan_needs_a_reason(project, make_png):
+    first = _source(project, make_png, n=91)
+    rec = fb_source([ev(make_png("fix2.png"))], url="https://www.facebook.com/groups/1/posts/91/", supersedes=first["id"])
+    [res] = _add(project, [rec])
+    assert res["status"] == "invalid" and any("supersedes_reason" in e for e in res["errors"])

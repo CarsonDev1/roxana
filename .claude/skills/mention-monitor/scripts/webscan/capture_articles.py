@@ -50,6 +50,14 @@ EXTRACT = r"""
   }
   let body = document.body, best = 0;
   for (const [el, s] of score) if (s > best && el !== document.body) { best = s; body = el; }
+  // Khung thân bài quen thuộc của báo Việt được ưu tiên hơn điểm (cột "Tin mới" nhiều đoạn mô tả có thể điểm cao hơn)
+  const KNOWN = '[itemprop="articleBody"], .edittor-content, .fck_detail, .the-article-body, .detail-content, .detail__content, ' +
+                '.article-content, .article__body, .content-detail, .singular-content, .detail-cmain, #main-detail-body, ' +
+                '.entry-content, .post-content, .cms-body, .article-body, .news-content, .content-news, .detail-content-body';
+  const known = [...document.querySelectorAll(KNOWN)].filter(el => !outside(el))
+    .map(el => ({el, n: [...el.querySelectorAll('p')].reduce((s, p) => s + p.innerText.trim().length, 0) || el.innerText.trim().length}))
+    .filter(x => x.n > 400).sort((a, b) => b.n - a.n);
+  if (known.length) body = known[0].el;
   const h1s = [...document.querySelectorAll('h1')].filter(h => h.getClientRects().length);
   const br = body.getBoundingClientRect();
   const h1 = h1s.find(h => { const r = h.getBoundingClientRect(); return r.top <= br.top + 5 && br.top - r.bottom < 900 && r.right > br.left && r.left < br.right; })
@@ -59,6 +67,21 @@ EXTRACT = r"""
   // bề ngang theo khối nội dung (tiêu đề có thể trải hết trang); tiêu đề chỉ quyết định mép trên
   const left = Math.max(0, Math.min(r2.left, r1.width < r2.width * 1.4 ? r1.left : r2.left) - 8);
   const right = Math.min(document.documentElement.clientWidth, Math.max(r2.right, r1.width < r2.width * 1.4 ? r1.right : r2.right) + 8);
+  // Khung chèn giữa bài (tin mới / tin liên quan / đọc thêm): tạm ẩn khi đọc chữ; ảnh chụp giữ nguyên như trang hiển thị
+  const INLINE = '.tindnd, .box-tinlienquan, .tinlienquan, .relate-news, .related-news, .box-related, .news-relation, ' +
+                 '[class^="related"], [class*=" related"], .read-more-box, .box-docthem, .VCSortableInPreviewMode[type="RelatedNews"]';
+  const hidden = [...body.querySelectorAll(INLINE)].map(e => [e, e.style.display]);
+  hidden.forEach(([e]) => { e.style.display = 'none'; });
+  const bodyText = body.innerText.trim();
+  hidden.forEach(([e, d]) => { e.style.display = d; });
+  // Danh sách tin khác ở cuối thân bài ("Có thể bạn quan tâm"…): cắt vùng chụp và nguyên văn tại tiêu đề đó
+  // chỉ các tiêu đề chắc chắn là danh sách cuối bài; "Tin liên quan"/"Đọc thêm" hay nằm GIỮA bài (Dân trí…) → không cắt
+  const TAIL = /^(Có thể bạn quan tâm|Tin cùng chuyên mục|Bài viết liên quan|Xem thêm các tin|Tin khác|Tin mới nhất)\s*:?$/i;
+  const tail = [...body.querySelectorAll('h2, h3, h4, div, span, strong, p')].find(e => e.childElementCount <= 1
+      && TAIL.test((e.innerText || '').trim()) && e.getBoundingClientRect().top > r2.top + r2.height * 0.3);
+  const cutAt = tail ? tail.getBoundingClientRect().top : null;
+  let cleanText = bodyText;
+  if (tail) { const i = bodyText.indexOf(tail.innerText.trim(), Math.floor(bodyText.length * 0.3)); if (i > 0) cleanText = bodyText.slice(0, i).trim(); }
   const author = (ld && (Array.isArray(ld.author) ? ld.author.map(a => a.name).join(', ') : ld.author && ld.author.name))
     || meta('meta[name="author"]') || meta('meta[property="article:author"]') || null;
   return {
@@ -67,8 +90,8 @@ EXTRACT = r"""
     site: meta('meta[property="og:site_name"]') || location.hostname,
     author, published: (ld && ld.datePublished) || meta('meta[property="article:published_time"]') || meta('meta[itemprop="datePublished"]') || meta('time[datetime]') && document.querySelector('time[datetime]').getAttribute('datetime'),
     modified: (ld && ld.dateModified) || meta('meta[property="article:modified_time"]'),
-    text: (h1 ? h1.innerText.trim() + '\n\n' : '') + body.innerText.trim(),
-    region: {x: left, y: r1.top + scrollY - 8, width: right - left, height: r2.bottom - r1.top + 16},
+    text: (h1 ? h1.innerText.trim() + '\n\n' : '') + cleanText, cut_tail: !!tail,
+    region: {x: left, y: r1.top + scrollY - 8, width: right - left, height: (cutAt || r2.bottom) - r1.top + 16},
     body_is_page: body === document.body,
   };
 }

@@ -139,11 +139,11 @@ def drafts(bundle: Path, container_id: str | None = None, container_name: str | 
         "posted_at_raw": post.get("time_text") or feed.get("tooltip") or "", "posted_at": posted,
         "posted_at_precision": "exact" if posted else "unknown", "text": text, "attachments": attachments,
         "metrics": metrics, "captured_at": captured,
-        "evidence": [{"file": s["shot"], "kind": "post", "shows": s["shows"], "captured_at": _at(log, s["at"]),
+        "evidence": [{"file": str(bundle / Path(s["shot"]).name), "kind": "post", "shows": s["shows"], "captured_at": _at(log, s["at"]),
                       "capture_tool": "playwright"} for s in posts]
-                    + [{"file": a["file"], "kind": "attach", "shows": f"Ảnh đính kèm phóng lớn (2x): {a.get('alt') or ''}".strip(),
+                    + [{"file": str(bundle / Path(a["file"]).name), "kind": "attach", "shows": f"Ảnh đính kèm phóng lớn (2x): {a.get('alt') or ''}".strip(),
                         "capture_tool": "playwright"} for a in attach]
-                    + [{"file": s["shot"], "kind": "cscroll", "shows": s["shows"], "captured_at": _at(log, s["at"]),
+                    + [{"file": str(bundle / Path(s["shot"]).name), "kind": "cscroll", "shows": s["shows"], "captured_at": _at(log, s["at"]),
                         "capture_tool": "playwright"} for s in scrolls],
         "snapshot_file": str(bundle / "p_snapshot.txt"),
         "notes": None if log.get("filter", "").startswith("Tất cả") else f"Bộ lọc bình luận: {log.get('filter')}",
@@ -270,7 +270,7 @@ def article_draft(bundle: Path) -> dict:
         "posted_at_raw": meta.get("published") or cand.get("published") or "", "posted_at": posted,
         "posted_at_precision": precision, "text": (bundle / "article.txt").read_text(encoding="utf-8"),
         "attachments": [], "metrics": {}, "captured_at": meta.get("captured_at"),
-        "evidence": [{"file": s["file"], "kind": "post",
+        "evidence": [{"file": str(bundle / Path(s["file"]).name), "kind": "post",
                       "shows": f"Bài báo — tiêu đề và nội dung (phần {i}/{len(meta.get('shots') or [])})",
                       "captured_at": f"{date}T{s['at']}+07:00" if date and s.get("at") else None,
                       "capture_tool": "playwright"} for i, s in enumerate(meta.get("shots") or [], 1)],
@@ -284,6 +284,7 @@ def apply_article(project: Project, bundle: Path, cls: dict, run_id: str) -> dic
     src = article_draft(Path(bundle))
     _merge(src, cls.get("source") or {}, "bài báo")
     src["keywords_matched"], _ = match_keywords(src["text"], config)
+    src.update({k: cls[k] for k in ("supersedes", "supersedes_reason") if cls.get(k)})
     [res] = add_records(project, [src], run_id, config)
     return res
 

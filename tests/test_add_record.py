@@ -63,7 +63,7 @@ def test_scan_supersedes_legacy(project, make_png):
 
 def test_manual_supersedes_must_point_to_legacy(project, make_png):
     [res] = add(project, fb_source([ev(make_png())], supersedes="FB-P00077"))
-    assert res["status"] == "invalid" and "origin=legacy" in res["errors"][0]
+    assert res["status"] == "invalid" and "có trong kho" in res["errors"][0]
 
 
 def test_comment_tree_with_batch_refs(project, make_png):
