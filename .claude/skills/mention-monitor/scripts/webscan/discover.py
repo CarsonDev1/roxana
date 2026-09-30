@@ -93,6 +93,7 @@ def main(argv=None) -> int:
     ap.add_argument("--from-year", type=int, default=2017)
     ap.add_argument("--to-year", type=int, default=datetime.now(TZ).year)
     ap.add_argument("--sources", default="news,web")
+    ap.add_argument("--extra", default="", help="thêm câu tìm (ngăn bằng |), vd tên pháp lý, bên liên quan phụ")
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -103,7 +104,8 @@ def main(argv=None) -> int:
         if log_f.exists() else set()
     sources = set(args.sources.split(","))
     jobs = []
-    for gid, q in terms(Project().load_config()):
+    extra = [("extra", q.strip()) for q in args.extra.split("|") if q.strip()]
+    for gid, q in terms(Project().load_config()) + extra:
         if "news" in sources:
             jobs += [("google_news", gid, q, y) for y in [None] + list(range(args.to_year, args.from_year - 1, -1))]
         if "web" in sources:
