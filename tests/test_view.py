@@ -73,3 +73,10 @@ def test_events_sorted_by_sort_key():
         {"record_type": "event", "id": "EVT-0003", "date": "2026-08-22"},
     ])
     assert [e["id"] for e in v.events] == ["EVT-0001", "EVT-0002", "EVT-0003"]
+
+
+def test_reclassification_applies_and_is_logged():
+    v = build_view([S("WEB-P00001", claim_type="van_ban"),
+                    K("CHK-000001", "WEB-P00001", updates={"claim_type": "thong_tin"}, notes="chỉ thuật lại")])
+    assert v.sources[0]["claim_type"] == "thong_tin"
+    assert v.changes[0]["target_id"] == "WEB-P00001"

@@ -92,3 +92,16 @@ def test_labels_and_descriptions_consistent():
     assert label("tone", "gay_gat") == "Gay gắt"
     assert label("tone", None) == ""
     assert label("tone", "la") == "la"
+
+
+def test_recheck_may_correct_classification_of_source_with_reason(project):
+    cfg = project.load_config()
+    base = {"record_type": "recheck", "target_id": "WEB-P00003", "checked_at": "2026-09-29T21:00:00+07:00",
+            "status": "active"}
+    fix = dict(base, updates={"claim_type": "thong_tin", "importance": "trung_binh"}, notes="Bài chỉ thuật lại kết luận")
+    assert validate(fix, cfg) == []
+    assert any("notes" in e for e in validate(dict(fix, notes=None), cfg))
+    assert any("claim_type" in e for e in validate(dict(fix, updates={"claim_type": "bịa"}), cfg))
+    assert any("entities_mentioned" in e for e in validate(dict(fix, updates={"entities_mentioned": ["ai"]}), cfg))
+    assert any("updates" in e for e in validate(dict(fix, updates={"text": "sửa nội dung"}), cfg))
+    assert any("updates" in e for e in validate(dict(fix, target_id="FB-G0001"), cfg))  # nhóm: chỉ trường của nhóm

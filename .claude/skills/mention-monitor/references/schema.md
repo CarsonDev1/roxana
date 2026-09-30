@@ -115,7 +115,7 @@ Bắt buộc: `platform`, `scope`, `section`, `query`, `started_at`, `results_se
 
 ## `recheck` — xem lại bài/bình luận/nhóm đã có
 
-Bắt buộc: `target_id`, `checked_at`, `status`. `edited` → thêm `new_text` (nội dung mới nguyên văn). Có thể kèm `metrics`, `evidence` (ảnh lần kiểm tra — gồm `cscroll` nếu chụp lại bình luận), `snapshot_text`, `notes`.
+Bắt buộc: `target_id`, `checked_at`, `status`. Sửa phân loại bài/bình luận: `updates` chỉ gồm `tone`, `claim_type`, `importance`, `importance_reason`, `topics`, `entities_mentioned` + `notes` nêu lý do (nhóm: các trường của nhóm). `edited` → thêm `new_text` (nội dung mới nguyên văn). Có thể kèm `metrics`, `evidence` (ảnh lần kiểm tra — gồm `cscroll` nếu chụp lại bình luận), `snapshot_text`, `notes`.
 
 ## `exclusion` — kết quả khớp tên nhưng không thuộc vụ việc
 

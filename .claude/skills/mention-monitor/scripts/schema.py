@@ -66,6 +66,8 @@ EXCLUSION_FIELDS = {"record_type", "url", "excerpt", "keywords_matched", "reason
 
 CONTAINER_UPDATABLE = {"privacy", "joined", "scan_mode", "member_count", "member_count_at", "last_scanned_at",
                        "topic_dedicated", "notes", "name"}
+# Sửa phân loại một bài/bình luận (kho chỉ ghi thêm): recheck.updates chỉ gồm các trường này, kèm notes nêu lý do
+CLASSIFICATION_UPDATABLE = {"tone", "claim_type", "importance", "importance_reason", "topics", "entities_mentioned"}
 
 REQUIRED: dict[str, dict[str, list[str]]] = {
     "source": {"always": ["platform", "content_type", "url", "url_kind", "author_name", "author_kind",
@@ -197,10 +199,18 @@ def validate(rec: dict, config: dict | None = None) -> list[str]:
             errors.append("recheck status=edited phải có new_text")
         updates = rec.get("updates")
         if updates is not None:
-            bad = set(updates) - CONTAINER_UPDATABLE
+            is_container = "-G" in str(rec.get("target_id") or "")
+            allowed = CONTAINER_UPDATABLE if is_container else CLASSIFICATION_UPDATABLE
+            bad = set(updates) - allowed
             if bad:
-                errors.append(f"updates chỉ được chứa {', '.join(sorted(CONTAINER_UPDATABLE))}; "
+                errors.append(f"updates chỉ được chứa {', '.join(sorted(allowed))}; "
                               f"không được: {', '.join(sorted(bad))}")
+            if not is_container:
+                if _missing(rec, "notes"):
+                    errors.append("Sửa phân loại (updates) phải có notes nêu lý do")
+                inner = {k: v for k, v in updates.items() if k in allowed}
+                errors += [e for e in validate({"record_type": "recheck", "target_id": "x", "checked_at": "x",
+                                                "status": "active", **inner}, config) if "updates" not in e]
 
     if rtype == "exclusion":
         if len(rec.get("excerpt") or "") > 100:

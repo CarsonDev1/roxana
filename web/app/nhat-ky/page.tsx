@@ -6,6 +6,22 @@ import { displayText, fmtTime } from "@/lib/text";
 export const metadata: Metadata = { title: "Nhật ký" };
 
 const th = "px-3 py-2 text-left font-medium";
+
+const FIELD: Record<string, string> = {
+  tone: "Sắc thái", claim_type: "Loại nội dung", importance: "Mức quan trọng", importance_reason: "Lý do",
+  topics: "Chủ đề", entities_mentioned: "Các bên được nhắc", joined: "Đã tham gia", privacy: "Chế độ nhóm",
+  scan_mode: "Cách quét", member_count: "Số thành viên", last_scanned_at: "Quét lần cuối", name: "Tên", notes: "Ghi chú",
+};
+const ENUM_OF: Record<string, string> = { tone: "tone", claim_type: "claim_type", importance: "importance", topics: "topics",
+  joined: "joined", privacy: "privacy", scan_mode: "scan_mode" };
+
+function updateValue(data: Parameters<typeof label>[0], key: string, value: unknown): string {
+  const one = (v: unknown) => {
+    if (key === "entities_mentioned") return data.parties.find((p) => p.id === v)?.label ?? String(v);
+    return ENUM_OF[key] ? label(data, ENUM_OF[key], String(v)) : String(v);
+  };
+  return (Array.isArray(value) ? value.map(one).join(", ") : one(value)).slice(0, 160);
+}
 const td = "px-3 py-2 align-top";
 
 export default async function LogPage() {
@@ -62,7 +78,7 @@ export default async function LogPage() {
                 {c.metrics_grew && <Badge tone="accent">Tương tác tăng</Badge>}
               </p>
               {c.new_text && <p className="prose-raw mt-1">{displayText(c.new_text)}</p>}
-              {c.updates && <p className="mt-1 text-xs text-ink-2">Cập nhật: {Object.entries(c.updates).map(([k, v]) => `${k} = ${String(v).slice(0, 120)}`).join(" · ")}</p>}
+              {c.updates && <p className="mt-1 text-xs text-ink-2">Cập nhật: {Object.entries(c.updates).map(([k, v]) => `${FIELD[k] ?? k}: ${updateValue(data, k, v)}`).join(" · ")}</p>}
               {c.notes && <p className="mt-1 text-xs text-muted">{c.notes}</p>}
             </li>
           ))}
