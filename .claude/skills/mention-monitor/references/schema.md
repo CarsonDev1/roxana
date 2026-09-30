@@ -19,7 +19,7 @@ Thời gian: ISO 8601 có `+07:00`, vd `2026-09-29T21:05:00+07:00`. Trường kh
 | `joined` | `yes` · `no` · `pending` · `unknown` |
 | `scan_mode` | `full` (quét mọi bài) · `keyword` (chỉ tìm trong nhóm theo từ khoá) |
 | `scope` | `global` · `container` |
-| `section` | `posts` · `groups` · `pages` · `videos` · `photos` · `hashtag` · `group_feed` · `page_feed` · `in_group_search` |
+| `section` | `posts` · `groups` · `pages` · `videos` · `photos` · `hashtag` · `group_feed` · `page_feed` · `in_group_search` · `news` · `web_search` |
 | recheck `status` | `active` · `edited` · `deleted` · `unavailable` |
 | `reliability` | `bao_chi` · `van_ban` · `mxh` |
 | `tone`, `claim_type`, `topics`, `importance` | xem `classification.md` |
