@@ -54,6 +54,9 @@ def main(argv=None) -> int:
         if not (d / "cls.json").exists() or (d / "applied.json").exists():
             continue
         cls = json.loads((d / "cls.json").read_text(encoding="utf-8"))
+        if cls.get("hold"):  # người phân loại thấy nội dung lấy sai → chờ chụp lại, không ghi
+            summary.setdefault("hold", []).append({"bundle": d.name, "reason": cls["hold"]})
+            continue
         try:
             if kind == "web":
                 res = {"source": apply_article(project, d, cls, args.run)}
