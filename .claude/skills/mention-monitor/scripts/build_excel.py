@@ -366,6 +366,249 @@ def write_data_sheets(wb, ctx: Ctx) -> tuple[list[Column], list[Column], list[Co
     return src_cols, cmt_cols, ctr_cols
 
 
+def timeline_columns(ctx: Ctx) -> list[Column]:
+    def related(e):
+        ids = e.get("related_ids") or []
+        if not ids:
+            return ""
+        link = ctx.internal(ids[0])
+        if isinstance(link, Internal):
+            link.text = join(ids)
+            return link
+        return join(ids)
+
+    return [
+        Column("Mã", 10, lambda e: e["id"]),
+        Column("Ngày", 16, lambda e: e.get("date_raw")),
+        Column("Sự kiện", 70, lambda e: e.get("description")),
+        Column("Nguồn", 30, lambda e: e.get("source_text") or ""),
+        Column("Mã liên quan", 14, related),
+        Column("Độ tin cậy", 22, lambda e: label("reliability", e.get("reliability"))),
+    ]
+
+
+def people_items(ctx: Ctx) -> list[dict]:
+    everything = ctx.view.sources + ctx.view.comments
+    items: list[dict] = []
+    for party in ctx.config.get("key_parties", []):
+        mentions = [x for x in everything if party["id"] in (x.get("entities_mentioned") or [])]
+        dates = sorted(x["posted_at"] for x in mentions if x.get("posted_at"))
+        items.append({"row_kind": "party", "name": party["name"], "label": ctx.party_label(party["id"]),
+                      "group": "Bên chính" if party.get("primary") else "Bên liên quan khác",
+                      "kind": party.get("kind", ""), "url": "", "role": party.get("role", ""),
+                      "first": dates[0] if dates else None, "last": dates[-1] if dates else None,
+                      "platforms": sorted({x["platform"] for x in mentions if x.get("platform")})})
+    authors: dict[str, dict] = {}
+    for x in everything:
+        key = x.get("author_url") or "name:" + (x.get("author_name") or "")
+        author = authors.setdefault(key, {"row_kind": "author", "name": x.get("author_name") or "",
+                                          "url": x.get("author_url") or "",
+                                          "kind": label("author_kind", x.get("author_kind")), "role": "",
+                                          "posts": 0, "dates": [], "platforms": set()})
+        if x["record_type"] == "source":
+            author["posts"] += 1
+        if x.get("posted_at"):
+            author["dates"].append(x["posted_at"])
+        if x.get("platform"):
+            author["platforms"].add(x["platform"])
+    for author in authors.values():
+        dates = sorted(author.pop("dates"))
+        author.update(group="Người đăng" if author["posts"] else "Người bình luận",
+                      first=dates[0] if dates else None, last=dates[-1] if dates else None,
+                      platforms=sorted(author["platforms"]))
+        items.append(author)
+    return items
+
+
+def people_columns(ctx: Ctx, src_cols: list[Column], cmt_cols: list[Column]) -> list[Column]:
+    def by_author(sheet, cols, url_header, name_header, p):
+        if p["url"]:
+            return countif(sheet, col_letter(cols, url_header), countif_literal(p["url"]))
+        return countif(sheet, col_letter(cols, name_header), countif_literal(p["name"]))
+
+    def posts(p):
+        if p["row_kind"] == "party":
+            return ""
+        return Formula("=" + by_author(S_SOURCES, src_cols, "Link người đăng", "Người đăng", p))
+
+    def comments(p):
+        if p["row_kind"] == "party":
+            return ""
+        return Formula("=" + by_author(S_COMMENTS, cmt_cols, "Link người viết", "Người viết", p))
+
+    def mentions(p):
+        if p["row_kind"] != "party":
+            return ""
+        crit = f"*{countif_literal(p['label'])}*"
+        return Formula("=" + countif(S_SOURCES, col_letter(src_cols, "Bên được nhắc"), crit) + "+"
+                       + countif(S_COMMENTS, col_letter(cmt_cols, "Bên được nhắc"), crit))
+
+    return [
+        Column("Tên", 30, lambda p: p["name"]),
+        Column("Nhóm", 16, lambda p: p["group"]),
+        Column("Loại", 14, lambda p: p["kind"]),
+        Column("Link", 30, lambda p: url_link(p["url"])),
+        Column("Vai trò", 50, lambda p: p["role"]),
+        Column("Số bài đăng", 9, posts),
+        Column("Số bình luận", 9, comments),
+        Column("Số lần được nhắc", 10, mentions),
+        Column("Xuất hiện lần đầu", 16, lambda p: fmt_time(p["first"], "day")),
+        Column("Lần gần nhất", 16, lambda p: fmt_time(p["last"], "day")),
+        Column("Nền tảng", 14, lambda p: join(label("platform", x) for x in p["platforms"])),
+    ]
+
+
+def evidence_items(ctx: Ctx) -> list[dict]:
+    items = []
+    for x in ctx.view.sources + ctx.view.comments:
+        if x.get("importance") != "cao":
+            continue
+        e = first_evidence(x, ("comment",)) if x["record_type"] == "comment" else main_evidence(x)
+        items.append({**x, "_evidence": e})
+    return items
+
+
+def evidence_columns(ctx: Ctx) -> list[Column]:
+    def summary(x):
+        text = x.get("text") or ""
+        return text if len(text) <= 300 else text[:300] + "…"
+
+    return [
+        Column("Mã", 12, lambda x: ctx.internal(x["id"])),
+        Column("Loại", 10, lambda x: "Bình luận" if x["record_type"] == "comment" else "Bài viết"),
+        Column("Ảnh", 64, lambda x: ctx.img(x["_evidence"], 480) if x["_evidence"] else NO_IMAGE),
+        Column("Tóm tắt nội dung", 50, summary),
+        Column("Người đăng", 20, lambda x: x.get("author_name")),
+        Column("Link", 30, lambda x: url_link(x.get("url"))),
+        Column("Thời gian", 18, lambda x: join([x.get("posted_at_raw"),
+                                                fmt_time(x.get("posted_at"), x.get("posted_at_precision"))])),
+        Column("Lý do quan trọng", 30, lambda x: x.get("importance_reason") or ""),
+        Column("File ảnh gốc", 30,
+               lambda x: ctx.file_link(x["_evidence"], x["_evidence"]["file"]) if x["_evidence"] else ""),
+        Column("SHA-256", 20, lambda x: (x["_evidence"] or {}).get("sha256", "")),
+        Column("Thu thập lúc", 16, lambda x: fmt_time(x.get("captured_at"))),
+    ]
+
+
+def write_overview(ws, ctx: Ctx, src_cols, cmt_cols, ctr_cols) -> None:
+    view = ctx.view
+    ws.column_dimensions["A"].width = 46
+    ws.column_dimensions["B"].width = 14
+    ws.column_dimensions["C"].width = 70
+    row = 1
+
+    def put(text, value=None, note=None, font=None):
+        nonlocal row
+        write_cell(ws, row, 1, text)
+        if font is not None:
+            ws.cell(row, 1).font = font
+        if value is not None:
+            write_cell(ws, row, 2, value)
+        if note:
+            write_cell(ws, row, 3, note)
+        row += 1
+
+    def section(title):
+        nonlocal row
+        row += 1
+        put(title, font=BOLD)
+
+    def both(src_header, cmt_header, criterion):
+        return Formula("=" + countif(S_SOURCES, col_letter(src_cols, src_header), criterion) + "+"
+                       + countif(S_COMMENTS, col_letter(cmt_cols, cmt_header), criterion))
+
+    put(f"TỔNG HỢP NHẮC ĐẾN VỤ VIỆC {ctx.config.get('project_name', '').upper()}", font=TITLE_FONT)
+    put("Cập nhật lúc", fmt_time(now_iso()))
+    runs = sorted({r["run_id"] for r in view.sources + view.search_logs
+                   if r.get("run_id") and r.get("origin") != "legacy"})
+    put("Lần quét gần nhất", runs[-1] if runs else "Chưa quét")
+
+    section("Tổng số")
+    put("Bài viết & nguồn", Formula(f"=COUNTA('{S_SOURCES}'!A:A)-1"))
+    put("Bình luận", Formula(f"=COUNTA('{S_COMMENTS}'!A:A)-1"))
+    put("Nhóm & trang", Formula(f"=COUNTA('{S_CONTAINERS}'!A:A)-1"))
+    put("Nhóm kín cần xin vào", Formula("=" + countif(S_CONTAINERS, col_letter(ctr_cols, "Cần xin vào"), "Có")))
+    put("Kết quả đã loại trừ (trùng tên)", Formula(f"=COUNTA('{S_EXCLUDED}'!A:A)-1"))
+
+    section("Nguồn theo nền tảng")
+    for platform in PLATFORMS:
+        text = label("platform", platform)
+        put(text, Formula("=" + countif(S_SOURCES, col_letter(src_cols, "Nền tảng"), countif_literal(text))))
+
+    section("Số lần được nhắc (bài + bình luận)")
+    for party in ctx.config.get("key_parties", []):
+        text = ctx.party_label(party["id"])
+        put(text, both("Bên được nhắc", "Bên được nhắc", f"*{countif_literal(text)}*"),
+            "Bên chính" if party.get("primary") else "Bên liên quan khác")
+
+    section("Theo thái độ (bài + bình luận)")
+    for text in LABELS["tone"].values():
+        put(text, both("Thái độ", "Thái độ", countif_literal(text)))
+
+    section("Theo mức quan trọng (bài + bình luận)")
+    for text in LABELS["importance"].values():
+        put(text, both("Mức quan trọng", "Mức quan trọng", countif_literal(text)))
+
+    section("Theo tháng đăng (bài + bình luận)")
+    months = sorted({month_key(x.get("posted_at"), x.get("posted_at_precision"))
+                     for x in view.sources + view.comments} - {MONTH_UNKNOWN})
+    for month in months + [MONTH_UNKNOWN]:
+        put(month, both("Tháng đăng", "Tháng", month))
+
+    section("Chưa quét được / giới hạn")
+    gaps = [r for r in view.search_logs if r.get("issues") or not r.get("reached_end")]
+    if not gaps:
+        put("Không có ghi nhận")
+    for r in gaps[-50:]:
+        put(f"{r['id']} · {label('section', r.get('section'))} · {r.get('query', '')}", None,
+            issues_text(r.get("issues")) or "Chưa cuộn tới hết kết quả")
+
+
+def write_legend(ws, ctx: Ctx) -> None:
+    ws.column_dimensions["A"].width = 32
+    ws.column_dimensions["B"].width = 110
+    rows = [("CHÚ THÍCH", ""),
+            ("Cách đọc mã", "FB-P = bài Facebook · FB-C = bình luận Facebook · FB-G = nhóm/trang Facebook · "
+                            "WEB-P = bài báo/website · LOG = nhật ký quét · CHK = lần kiểm tra lại · "
+                            "EXC = kết quả đã loại trừ · EVT = mốc sự kiện")]
+    for enum_name, title in (("tone", "Thái độ"), ("claim_type", "Loại nội dung"), ("importance", "Mức quan trọng")):
+        rows.append((title, ""))
+        for key, text in LABELS[enum_name].items():
+            rows.append((f"   {text}", DESCRIPTIONS[enum_name][key]))
+    rows += [
+        ("Loại link", "Link riêng của bài = mở thẳng tới bài · Chỉ có link nhóm = Facebook không cho lấy link "
+                      "riêng, phải tìm bài trong nhóm · Không có link"),
+        ("Độ chính xác thời gian", "Chính xác = lấy từ ô hiện ra khi rê chuột lên mốc thời gian · Ước lượng = "
+                                   "quy đổi từ \"2 giờ\", \"3 ngày\"… theo thời điểm thu thập"),
+        ("Ảnh cuộn", "Ảnh chụp liên tiếp phần bình luận; cột ghi tên file và bình luận nằm ở vị trí thứ mấy trong ảnh"),
+        ("Trạng thái", "Còn · Đã sửa (nội dung mới ở sheet Lịch sử thay đổi, nội dung cũ vẫn giữ) · Đã xoá · "
+                       "Không truy cập được"),
+        ("Nguồn dữ liệu", "Quét = do skill thu thập, có ảnh và mã băm · Từ file cũ = nhập từ file tổng hợp "
+                          "ngày 22/08/2026, chưa có ảnh"),
+        ("Kiểm tra ảnh không bị sửa", "Mở Command Prompt, chạy: certutil -hashfile \"<đường dẫn ảnh>\" SHA256 — "
+                                      "kết quả phải trùng cột SHA-256"),
+        ("Chuyển file sang máy khác", "Phải chép cả thư mục dự án (gồm screenshots, snapshots, output) — "
+                                      "link ảnh là đường dẫn tương đối"),
+        ("Lưu ý ngôn từ", "Nội dung nguyên văn giữ nguyên lời người đăng. Các từ như \"lừa đảo\" là cách người đăng "
+                          "gọi, không phải kết luận pháp lý. Phân loại thái độ/cáo buộc chỉ mô tả nội dung."),
+    ]
+    if ctx.config.get("disclaimer"):
+        rows.append(("Lưu ý từ file cũ", ctx.config["disclaimer"]))
+    for r, (a, b) in enumerate(rows, 1):
+        write_cell(ws, r, 1, a)
+        write_cell(ws, r, 2, b)
+    ws.cell(1, 1).font = TITLE_FONT
+
+
+def write_summary_sheets(wb, ctx: Ctx, src_cols, cmt_cols, ctr_cols) -> None:
+    thumbs = ctx.project.thumbs_dir
+    write_table(wb[S_TIMELINE], timeline_columns(ctx), ctx.view.events, thumbs)
+    write_table(wb[S_PEOPLE], people_columns(ctx, src_cols, cmt_cols), people_items(ctx), thumbs)
+    write_table(wb[S_EVIDENCE], evidence_columns(ctx), evidence_items(ctx), thumbs)
+    write_overview(wb[S_OVERVIEW], ctx, src_cols, cmt_cols, ctr_cols)
+    write_legend(wb[S_LEGEND], ctx)
+
+
 def build(project: Project) -> dict:
     config = project.load_config()
     records, warnings = read_records(project.records_path)
@@ -376,6 +619,7 @@ def build(project: Project) -> dict:
     for name in SHEET_ORDER:
         wb.create_sheet(name)
     src_cols, cmt_cols, ctr_cols = write_data_sheets(wb, ctx)
+    write_summary_sheets(wb, ctx, src_cols, cmt_cols, ctr_cols)
     wb.calculation.fullCalcOnLoad = True
 
     out = project.output_path(config)

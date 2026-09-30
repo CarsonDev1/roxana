@@ -7,8 +7,8 @@ from openpyxl import load_workbook
 
 import build_excel
 from add_record import add_records
-from build_excel import (S_CHANGES, S_COMMENTS, S_CONTAINERS, S_EXCLUDED, S_LOG, S_SOURCES, SHEET_ORDER,
-                         ExcelLockedError, build)
+from build_excel import (S_CHANGES, S_COMMENTS, S_CONTAINERS, S_EVIDENCE, S_EXCLUDED, S_LEGEND, S_LOG,
+                         S_OVERVIEW, S_PEOPLE, S_SOURCES, S_TIMELINE, SHEET_ORDER, ExcelLockedError, build)
 from factories import ev, fb_comment, fb_container, fb_source
 from formula_eval import eval_formula
 
@@ -182,3 +182,88 @@ def test_cli_prints_json(populated, capsys):
     project, *_ = populated
     assert build_excel.main(["--project", str(project.root)]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "ok"
+
+
+def test_overview_formulas_evaluate_to_expected(populated):
+    project, *_ = populated
+    _, wb = load(project)
+    ws = wb[S_OVERVIEW]
+    values = {ws.cell(r, 1).value: ws.cell(r, 2).value for r in range(1, ws.max_row + 1)}
+
+    def value(label_text):
+        return eval_formula(wb, values[label_text])
+
+    assert value("Bài viết & nguồn") == 2
+    assert value("Bình luận") == 3
+    assert value("Nhóm & trang") == 1
+    assert value("Nhóm kín cần xin vào") == 1
+    assert value("Kết quả đã loại trừ (trùng tên)") == 1
+    assert value("Facebook") == 2
+    assert value("Web / Báo chí") == 0
+    assert value("Bà Phạm Thị Ngọc Liên") == 2   # bài FB-P00001 + bình luận thứ 2
+    assert value("Gay gắt") == 2                  # bài từ file cũ + bình luận thứ 2
+    assert value("Cao") == 2
+    assert value("2026-08") == 1 and value("2024-12") == 1 and value("2026-09") == 3
+    assert value("Không rõ") == 0
+    assert any("Facebook chỉ trả 40 kết quả" == ws.cell(r, 3).value for r in range(1, ws.max_row + 1))
+
+
+def test_people_sheet(populated):
+    project, *_ = populated
+    _, wb = load(project)
+    ws = wb[S_PEOPLE]
+    h = header_map(ws)
+    names = [ws.cell(r, 1).value for r in range(2, ws.max_row + 1)]
+    assert names[:4] == ["Công ty TNHH XD-DV-TM-Đầu tư BĐS Tường Phong", "Công ty CP Naviland",
+                         "Bà Phạm Thị Ngọc Liên", "Toà án Nhân dân Khu vực 16 – TP.HCM"]
+    lien = names.index("Bà Phạm Thị Ngọc Liên") + 2
+    assert ws.cell(lien, h["Nhóm"]).value == "Bên chính"
+    assert eval_formula(wb, ws.cell(lien, h["Số lần được nhắc"]).value) == 2
+    qc = names.index("Quyết Chiến Roxana") + 2
+    assert eval_formula(wb, ws.cell(qc, h["Số bài đăng"]).value) == 1
+    hbd = names.index("Huynh Bich Diem") + 2
+    assert names.count("Huynh Bich Diem") == 1      # gộp theo link trang cá nhân
+    assert eval_formula(wb, ws.cell(hbd, h["Số bài đăng"]).value) == 1
+    assert eval_formula(wb, ws.cell(hbd, h["Số bình luận"]).value) == 3
+
+
+def test_evidence_sheet_lists_high_importance(populated):
+    project, src, comments = populated
+    _, wb = load(project)
+    ws = wb[S_EVIDENCE]
+    h = header_map(ws)
+    assert [ws.cell(r, 1).value for r in range(2, ws.max_row + 1)] == [src["id"], comments[1]["id"]]
+    assert len(ws._images) == 2
+    assert len(ws.cell(2, h["SHA-256"]).value) == 64
+
+
+def test_timeline_sheet(populated):
+    project, *_ = populated
+    _, wb = load(project)
+    ws = wb[S_TIMELINE]
+    h = header_map(ws)
+    assert ws.cell(2, h["Độ tin cậy"]).value == "Có văn bản chính thức"
+    assert ws.cell(2, h["Mã liên quan"]).hyperlink.location.startswith(f"'{S_SOURCES}'!A")
+
+
+def test_legend_has_definitions_and_disclaimer(populated):
+    project, *_ = populated
+    _, wb = load(project)
+    ws = wb[S_LEGEND]
+    text = "\n".join(str(ws.cell(r, c).value or "") for r in range(1, ws.max_row + 1) for c in (1, 2))
+    for needle in ("Gay gắt", "Cáo buộc", "certutil -hashfile", "không phải kết luận pháp lý", "chép cả thư mục"):
+        assert needle in text
+
+
+def test_full_calc_on_load_and_idempotent(populated):
+    project, *_ = populated
+
+    def snapshot():
+        wb = load_workbook(build(project)["file"])
+        cells = {n: [[c.value for c in row] for row in wb[n].iter_rows()] for n in SHEET_ORDER if n != S_OVERVIEW}
+        return wb, cells
+
+    wb1, first = snapshot()
+    _, second = snapshot()
+    assert wb1.calculation.fullCalcOnLoad is True
+    assert first == second
