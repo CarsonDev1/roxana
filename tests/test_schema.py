@@ -105,3 +105,12 @@ def test_recheck_may_correct_classification_of_source_with_reason(project):
     assert any("entities_mentioned" in e for e in validate(dict(fix, updates={"entities_mentioned": ["ai"]}), cfg))
     assert any("updates" in e for e in validate(dict(fix, updates={"text": "sửa nội dung"}), cfg))
     assert any("updates" in e for e in validate(dict(fix, target_id="FB-G0001"), cfg))  # nhóm: chỉ trường của nhóm
+
+
+def test_recheck_may_extend_event_sources(project):
+    cfg = project.load_config()
+    base = {"record_type": "recheck", "target_id": "EVT-000012", "checked_at": "2026-09-29T21:00:00+07:00", "status": "active",
+            "updates": {"related_ids": ["WEB-P00001", "WEB-P00002"]}, "notes": "Thêm bài mới cùng đưa tin"}
+    assert validate(base, cfg) == []
+    assert any("updates" in e for e in validate(dict(base, updates={"description": "sửa"}), cfg))
+    assert any("notes" in e for e in validate(dict(base, notes=None), cfg))

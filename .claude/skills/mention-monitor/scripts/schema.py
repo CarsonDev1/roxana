@@ -68,6 +68,8 @@ CONTAINER_UPDATABLE = {"privacy", "joined", "scan_mode", "member_count", "member
                        "topic_dedicated", "notes", "name"}
 # Sửa phân loại một bài/bình luận (kho chỉ ghi thêm): recheck.updates chỉ gồm các trường này, kèm notes nêu lý do
 CLASSIFICATION_UPDATABLE = {"tone", "claim_type", "importance", "importance_reason", "topics", "entities_mentioned"}
+# Mốc thời gian: chỉ bổ sung danh sách bài nguồn (related_ids = danh sách ĐẦY ĐỦ sau khi thêm), kèm notes nêu lý do
+EVENT_UPDATABLE = {"related_ids"}
 
 REQUIRED: dict[str, dict[str, list[str]]] = {
     "source": {"always": ["platform", "content_type", "url", "url_kind", "author_name", "author_kind",
@@ -199,13 +201,17 @@ def validate(rec: dict, config: dict | None = None) -> list[str]:
             errors.append("recheck status=edited phải có new_text")
         updates = rec.get("updates")
         if updates is not None:
-            is_container = "-G" in str(rec.get("target_id") or "")
-            allowed = CONTAINER_UPDATABLE if is_container else CLASSIFICATION_UPDATABLE
+            target = str(rec.get("target_id") or "")
+            is_container = "-G" in target
+            is_event = target.startswith("EVT")
+            allowed = CONTAINER_UPDATABLE if is_container else EVENT_UPDATABLE if is_event else CLASSIFICATION_UPDATABLE
             bad = set(updates) - allowed
             if bad:
                 errors.append(f"updates chỉ được chứa {', '.join(sorted(allowed))}; "
                               f"không được: {', '.join(sorted(bad))}")
             if not is_container:
+                if is_event and not isinstance(updates.get("related_ids", []), list):
+                    errors.append("updates.related_ids phải là danh sách")
                 if _missing(rec, "notes"):
                     errors.append("Sửa phân loại (updates) phải có notes nêu lý do")
                 inner = {k: v for k, v in updates.items() if k in allowed}

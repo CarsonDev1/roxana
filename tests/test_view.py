@@ -80,3 +80,9 @@ def test_reclassification_applies_and_is_logged():
                     K("CHK-000001", "WEB-P00001", updates={"claim_type": "thong_tin"}, notes="chỉ thuật lại")])
     assert v.sources[0]["claim_type"] == "thong_tin"
     assert v.changes[0]["target_id"] == "WEB-P00001"
+
+
+def test_event_sources_extended_by_recheck():
+    ev = {"record_type": "event", "id": "EVT-0001", "date": "2021-11-04", "description": "Phạt", "related_ids": ["WEB-P00001"]}
+    v = build_view([ev, K("CHK-000001", "EVT-0001", updates={"related_ids": ["WEB-P00001", "WEB-P00009"]}, notes="thêm")])
+    assert v.events[0]["related_ids"] == ["WEB-P00001", "WEB-P00009"]

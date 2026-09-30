@@ -59,7 +59,7 @@ def build_view(records: list[dict], warnings: list[str] | None = None) -> View:
         by_type.setdefault(rec.get("record_type"), []).append(rec)
 
     items: dict[str, dict] = {}
-    for rtype in ("source", "comment", "container"):
+    for rtype in ("source", "comment", "container", "event"):
         for rec in by_type.get(rtype, []):
             item = dict(rec)
             item.update(status="active", last_checked_at=None, all_evidence=list(rec.get("evidence") or []),
@@ -111,7 +111,7 @@ def build_view(records: list[dict], warnings: list[str] | None = None) -> View:
     view.containers = sorted((items[r["id"]] for r in by_type.get("container", [])), key=lambda c: c["id"])
     view.search_logs = sorted(by_type.get("search_log", []), key=lambda r: (r.get("started_at") or "", r["id"]))
     view.exclusions = sorted(by_type.get("exclusion", []), key=lambda r: r["id"])
-    view.events = sorted(by_type.get("event", []),
+    view.events = sorted((items[r["id"]] for r in by_type.get("event", [])),
                          key=lambda e: (e.get("sort_key") or e.get("date") or "9999", e["id"]))
     view.by_id = items
     return view
