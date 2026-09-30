@@ -64,6 +64,9 @@ def build_view(records: list[dict], warnings: list[str] | None = None) -> View:
             item = dict(rec)
             item.update(status="active", last_checked_at=None, all_evidence=list(rec.get("evidence") or []),
                         evidence_groups=[list(rec.get("evidence") or [])],
+                        captures=[{"record_id": rec["id"], "at": rec.get("captured_at"),
+                                   "images": list(rec.get("evidence") or [])}] if rec.get("evidence") else [],
+                        metrics_history=[],
                         current_metrics=_initial_metrics(rec))
             items[item["id"]] = item
 
@@ -88,6 +91,10 @@ def build_view(records: list[dict], warnings: list[str] | None = None) -> View:
             target["scroll_refs"] = chk["scroll_refs"]
         if chk.get("evidence"):
             target["evidence_groups"].append(list(chk["evidence"]))
+            target["captures"].append({"record_id": chk["id"], "at": chk.get("checked_at"),
+                                       "images": list(chk["evidence"])})
+        if new_metrics:
+            target["metrics_history"].append({"record_id": chk["id"], "at": chk.get("checked_at"), **new_metrics})
         grew = any(isinstance(v, (int, float)) and isinstance(before.get(k), (int, float)) and v > before[k]
                    for k, v in new_metrics.items())
         if chk.get("status") in ("edited", "deleted", "unavailable") or grew or chk.get("updates"):
