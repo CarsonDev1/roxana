@@ -98,13 +98,55 @@ def post_area(page) -> dict:
     return {k: area[k] for k in ("x", "y", "width", "height")}
 
 
-def main(out_dir, prefix):
-    sys.stdout.reconfigure(encoding="utf-8")
+VISIBLE_COMMENTS = r"""
+(area) => {
+  const d = [...document.querySelectorAll('[role="dialog"]')].filter(x => x.querySelector('div[role="article"]')).pop();
+  if (!d) return [];
+  return [...d.querySelectorAll('div[role="article"][aria-label]')].filter(el => el.getClientRects().length)
+    .map(el => ({el, r: el.getBoundingClientRect()}))
+    .filter(({r}) => r.bottom > area.y + 8 && r.top < area.y + area.height - 8)
+    .sort((a, b) => a.r.top - b.r.top)
+    .map(({el}) => {
+      const a = [...el.querySelectorAll('a[href*="comment_id="]')].map(x => x.href)[0] || '';
+      const cid = (a.match(/[?&]comment_id=(\d+)/) || [])[1] || null;
+      const rid = (a.match(/reply_comment_id=(\d+)/) || [])[1] || null;
+      return rid || cid || el.getAttribute('aria-label');
+    });
+}
+"""
+
+
+POST_INFO = r"""
+() => {
+  const d = [...document.querySelectorAll('[role="dialog"]')].filter(x => x.querySelector('[data-ad-rendering-role]')).pop() || document;
+  const names = [...d.querySelectorAll('[data-ad-rendering-role="profile_name"]')];
+  const link = (el) => el && [...el.querySelectorAll('a[href]')].find(a => a.innerText.trim());
+  const a0 = link(names[0]);
+  const msgs = [...d.querySelectorAll('[data-ad-rendering-role="story_message"]')];
+  const meta = d.querySelector('[data-ad-rendering-role="meta"]');
+  const firstComment = d.querySelector('div[role="article"][aria-label]');
+  // số liệu: các số đứng một mình sau thân bài và trước bình luận đầu tiên (thích · bình luận · chia sẻ)
+  const nums = [...d.querySelectorAll('span')].filter(s => {
+      if (!/^\d[\d.,]*\s*(K|N|nghìn|triệu)?$/i.test(s.innerText.trim())) return false;
+      if (firstComment && (firstComment.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+      return !s.closest('div[role="article"][aria-label]');
+    }).map(s => s.innerText.trim());
+  const shared = names[1] ? {author: (link(names[1]) || {}).innerText, author_href: (link(names[1]) || {}).href,
+                             text: msgs[1] ? msgs[1].innerText.trim() : null} : null;
+  const badge = names[0] ? [...names[0].parentElement.querySelectorAll('span')].map(s => s.innerText.trim())
+      .find(t => /^(Quản trị viên|Người kiểm duyệt|Fan cứng|Người đóng góp nổi bật|Thành viên mới|Admin|Moderator)$/.test(t)) : null;
+  return {author: a0 ? a0.innerText.trim() : (names[0] ? names[0].innerText.trim() : null), author_href: a0 ? a0.href : null,
+          badge: badge || null, text: msgs[0] ? msgs[0].innerText.trim() : null, shared,
+          time_text: meta ? meta.innerText.split('·')[0].trim() : null, counts_raw: [...new Set(nums.slice(0, 3))].length ? nums.slice(0, 3) : [],
+          link_preview: [...d.querySelectorAll('[data-ad-rendering-role="title"], [data-ad-rendering-role="description"]')].map(e => e.innerText.trim()).filter(Boolean)};
+}
+"""
+
+
+def capture(b, p, out_dir, prefix) -> dict:
+    """Capture the post currently open in page `p` (permalink dialog view). Returns the log dict."""
     log = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S+07:00"), "steps": []}
-    with sync_playwright() as pw:
-        b = pw.chromium.connect_over_cdp("http://127.0.0.1:9222")
-        p = [q for q in b.contexts[0].pages if not q.url.startswith("devtools")][-1]
-        p.bring_to_front()
+    if True:
         cdp = b.contexts[0].new_cdp_session(p)
         n = {"post": 0, "cscroll": 0}
 
@@ -114,7 +156,10 @@ def main(out_dir, prefix):
             area = post_area(p)  # chỉ khung bài — không thanh Facebook, menu trái (tên tài khoản), quảng cáo, ô bình luận
             data = cdp.send("Page.captureScreenshot", {"format": "png", "clip": {**area, "scale": 1}})["data"]
             open(path, "wb").write(base64.b64decode(data))
-            log["steps"].append({"shot": path, "kind": kind, "shows": shows, "at": time.strftime("%H:%M:%S")})
+            step = {"shot": path, "kind": kind, "shows": shows, "at": time.strftime("%H:%M:%S")}
+            if kind == "cscroll":  # bình luận nào nằm trong ảnh này, theo thứ tự từ trên xuống → scroll_refs
+                step["comments"] = p.evaluate(f"({VISIBLE_COMMENTS})", area)
+            log["steps"].append(step)
             return path
 
         def pause(a=2.0, z=4.0):
@@ -157,7 +202,7 @@ def main(out_dir, prefix):
             log["filter"] = "không thấy nút bộ lọc (có thể đã là Tất cả bình luận)"
 
         # 4. mở hết phản hồi / bình luận / Xem thêm
-        for _ in range(30):
+        for _ in range(400):
             more = p.locator('[role="dialog"] [role="button"]').filter(
                 has_text=__import__("re").compile(r"^(Xem thêm bình luận|Xem \d+ phản hồi|Xem tất cả \d+ phản hồi|Xem 1 phản hồi|Xem thêm)$"))
             visible = [more.nth(i) for i in range(more.count()) if more.nth(i).is_visible()]
@@ -165,6 +210,12 @@ def main(out_dir, prefix):
                 break
             visible[0].scroll_into_view_if_needed(); visible[0].click(timeout=5000); pause(2, 5)
         log["expanded_rounds"] = _
+
+        # 4b. thông tin bài (sau khi đã mở "Xem thêm")
+        try:
+            log["post"] = p.evaluate(POST_INFO)
+        except Exception as exc:
+            log["post"] = {"error": str(exc)[:200]}
 
         # 5. bản chữ
         text = p.evaluate("""() => { const d = [...document.querySelectorAll('[role="dialog"]')].pop(); return (d || document.body).innerText; }""")
@@ -177,7 +228,7 @@ def main(out_dir, prefix):
             p.mouse.move(cx, cy)
             p.mouse.wheel(0, -150); pause(1, 1.5)
             last_marker = None
-            for _ in range(40):
+            for _ in range(600):
                 shot("cscroll", f"Bình luận đoạn {n['cscroll'] + 1}")
                 marker = p.evaluate("""() => { const d = [...document.querySelectorAll('[role="dialog"] *')].find(e => e.scrollHeight > e.clientHeight + 50 && getComputedStyle(e).overflowY.match(/auto|scroll/)); return d ? d.scrollTop : scrollY; }""")
                 if marker == last_marker:
@@ -193,7 +244,16 @@ def main(out_dir, prefix):
         log["url"] = p.url
         log["ended_at"] = time.strftime("%Y-%m-%dT%H:%M:%S+07:00")
         json.dump(log, open(f"{out_dir}\\{prefix}_log.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-        print(json.dumps(log, ensure_ascii=False, indent=1))
+    return log
+
+
+def main(out_dir, prefix):
+    sys.stdout.reconfigure(encoding="utf-8")
+    with sync_playwright() as pw:
+        b = pw.chromium.connect_over_cdp("http://127.0.0.1:9222")
+        p = [q for q in b.contexts[0].pages if not q.url.startswith("devtools")][-1]
+        p.bring_to_front()
+        print(json.dumps(capture(b, p, out_dir, prefix), ensure_ascii=False, indent=1))
 
 
 if __name__ == "__main__":
