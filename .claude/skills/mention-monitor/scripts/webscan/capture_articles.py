@@ -14,6 +14,7 @@ import base64
 import hashlib
 import json
 import random
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -189,15 +190,24 @@ def main(argv=None) -> int:
                 (out / "article.html").write_text(page.content(), encoding="utf-8")
                 reg = info["region"]
                 parts, y, n = [], reg["y"], 0
-                while y < reg["y"] + reg["height"] and n < 20:
-                    h = min(MAX_PART, reg["y"] + reg["height"] - y)
-                    n += 1
-                    shot = out / f"article_{n:02d}.png"
-                    data = cdp.send("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True,
-                                                              "clip": {"x": reg["x"], "y": y, "width": reg["width"], "height": h, "scale": 1}})["data"]
-                    shot.write_bytes(base64.b64decode(data))
-                    parts.append({"file": str(shot), "at": time.strftime("%H:%M:%S")})
-                    y += h
+                try:
+                    while y < reg["y"] + reg["height"] and n < 20:
+                        h = min(MAX_PART, reg["y"] + reg["height"] - y)
+                        n += 1
+                        shot = out / f"article_{n:02d}.png"
+                        data = cdp.send("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True,
+                                                                  "clip": {"x": reg["x"], "y": y, "width": reg["width"], "height": h, "scale": 1}})["data"]
+                        shot.write_bytes(base64.b64decode(data))
+                        parts.append({"file": str(shot), "at": time.strftime("%H:%M:%S")})
+                        y += h
+                except Exception as exc:  # chụp lỗi (trang quá dài, trang sập…) → bỏ thư mục dở, ghi lỗi để lần sau thử lại
+                    shutil.rmtree(out, ignore_errors=True)
+                    index[c["url"]] = {"error": f"screenshot: {type(exc).__name__}: {str(exc)[:160]}",
+                                       "attempts": (prev or {}).get("attempts", 0) + 1}
+                    index_f.write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
+                    page = ctx.new_page()
+                    cdp = ctx.new_cdp_session(page)
+                    continue
                 meta["shots"] = parts
             (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
             index[c["url"]] = {"key": key, "relevant": bool(matched)}
