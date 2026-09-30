@@ -213,6 +213,10 @@ def main(argv=None) -> int:
                 (out / "article.txt").write_text(info["text"], encoding="utf-8")
                 (out / "article.html").write_text(page.content(), encoding="utf-8")
                 reg = info["region"]
+                if reg["width"] < 200 or reg["height"] < 150:  # không nhận ra khối bài → chụp cả trang (ghi rõ trong meta)
+                    full_h = page.evaluate("document.documentElement.scrollHeight")
+                    reg = info["region"] = {"x": 0, "y": 0, "width": 1280, "height": min(full_h, 6000)}
+                    meta["region_fallback"] = "Không nhận ra khối nội dung — chụp toàn trang (tối đa 6000px)"
                 parts, y, n = [], reg["y"], 0
                 try:
                     while y < reg["y"] + reg["height"] and n < 20:
