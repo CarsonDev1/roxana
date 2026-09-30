@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { projectRoot } from "@/lib/data";
-import { allowedFile } from "@/lib/files";
+import { allowedFile, storageUrl } from "@/lib/files";
+
+async function exists(p: string): Promise<boolean> {
+  return fs.access(p).then(() => true, () => false);
+}
 
 const TYPES: Record<string, string> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
@@ -15,6 +19,10 @@ export async function GET(request: Request) {
   const abs = allowedFile(root, rel);
   const type = abs ? TYPES[path.extname(abs).toLowerCase()] : undefined;
   if (!abs || !type) return new Response("Not found", { status: 404 });
+  const remote = storageUrl(rel);
+  if (remote && (process.env.MM_DATA_SOURCE === "supabase" || !(await exists(abs)))) {
+    return Response.redirect(remote, 302); // không có file trên máy (vd. trên Vercel) → ảnh trong Supabase Storage
+  }
   try {
     // realpath chặn trường hợp symlink trỏ ra ngoài thư mục được phép
     const real = await fs.realpath(abs);

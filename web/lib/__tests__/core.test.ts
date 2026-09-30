@@ -82,3 +82,16 @@ describe("filterComments", () => {
     expect(filterComments(list, { q: "trả nhà" }).map((x) => x.id)).toEqual(["1"]);
   });
 });
+
+describe("storageUrl", () => {
+  it("maps an evidence path to the public Supabase Storage URL", async () => {
+    const { storageUrl } = await import("../files");
+    const before = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co/";
+    expect(storageUrl(["screenshots", "web", "2026-09-30", "WEB P1.png"].join(String.fromCharCode(92))))
+      .toBe("https://x.supabase.co/storage/v1/object/public/evidence/screenshots/web/2026-09-30/WEB%20P1.png");
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    expect(storageUrl("screenshots/a.png")).toBeNull();
+    if (before !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = before;
+  });
+});

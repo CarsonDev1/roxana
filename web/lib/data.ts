@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { createClient, supabaseConfigured } from "@/utils/supabase/server";
 import type { SiteData } from "./types";
 
 /** Thư mục dự án (chứa .claude, data/, screenshots/). Mặc định: thư mục cha của web/. */
@@ -12,15 +14,30 @@ export function dataFile(): string {
   return path.join(projectRoot(), "output", "site", "data.json");
 }
 
-/** Đọc data.json mỗi lần tải trang (không cache) — quét xong chạy export_site.py rồi F5 là thấy dữ liệu mới. */
+/**
+ * Dữ liệu mỗi lần tải trang (không cache).
+ * - Trên máy: output/site/data.json (quét xong chạy export_site.py rồi F5 là thấy).
+ * - Không có file đó (vd. trên Vercel) hoặc MM_DATA_SOURCE=supabase: bản mới nhất trong bảng site_snapshots của Supabase
+ *   (sync_supabase.py đẩy lên sau mỗi đợt quét).
+ */
 export async function getData(): Promise<SiteData | null> {
   await connection();
-  try {
-    return JSON.parse(await fs.readFile(dataFile(), "utf-8")) as SiteData;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw err;
+  if (process.env.MM_DATA_SOURCE !== "supabase") {
+    try {
+      return JSON.parse(await fs.readFile(dataFile(), "utf-8")) as SiteData;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    }
   }
+  return supabaseConfigured ? latestSnapshot() : null;
+}
+
+async function latestSnapshot(): Promise<SiteData | null> {
+  const supabase = createClient(await cookies());
+  const { data, error } = await supabase.from("site_snapshots").select("data")
+    .order("id", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(`Supabase: ${error.message}`);
+  return (data?.data as SiteData | undefined) ?? null;
 }
 
 export function label(data: SiteData, enumName: string, value: string | null | undefined): string {

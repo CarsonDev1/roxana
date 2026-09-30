@@ -8,3 +8,6 @@ legacy/
 __pycache__/
 .pytest_cache/
 archive/
+
+# Khoá Supabase (secret) cho script đồng bộ — không đưa vào git
+.env*

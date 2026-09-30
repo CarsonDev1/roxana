@@ -21,3 +21,11 @@ export function allowedFile(root: string, rel: string): string | null {
 export function fileUrl(rel: string | null | undefined): string | null {
   return rel ? `/api/file?path=${encodeURIComponent(rel)}` : null;
 }
+
+/** Link công khai của một file bằng chứng trong Supabase Storage (bucket "evidence", cùng đường dẫn tương đối). */
+export function storageUrl(rel: string): string | null {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  const key = rel.replace(/\\/g, "/").split("/").filter(Boolean).map(encodeURIComponent).join("/");
+  return `${base.replace(/\/$/, "")}/storage/v1/object/public/evidence/${key}`;
+}
