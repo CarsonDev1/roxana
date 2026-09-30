@@ -192,3 +192,10 @@ def test_person_names_need_case_context_not_generic_real_estate_words():
     assert match_keywords("Ông Phạm Ngọc Liên, Giám đốc Văn phòng đăng ký đất đai, nói về sổ hồng căn hộ", cfg) == ([], ["lien"])
     assert match_keywords("Bà Phạm Ngọc Liên, TGĐ Naviland", cfg)[0] == ["lien", "naviland"]
     assert match_keywords("Bà Phạm Ngọc Liên phát biểu", cfg, context_text="Nhóm cư dân Roxana")[0] == ["lien"]
+
+
+def test_part_of_own_name_is_not_context():
+    cfg = {"keyword_groups": [{"id": "lien", "label": "Bà Liên", "terms": ["Phạm Thị Ngọc Liên"], "requires_context": True}],
+           "context_terms": ["Ngọc Liên"], "case_context_terms": ["Ngọc Liên", "Roxana"]}
+    assert match_keywords("Thơ Phạm Thị Ngọc Liên — Mùa thu", cfg) == ([], ["lien"])
+    assert match_keywords("Bà Phạm Thị Ngọc Liên và Roxana", cfg)[0] == ["lien"]

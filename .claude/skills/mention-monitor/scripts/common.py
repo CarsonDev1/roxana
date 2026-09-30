@@ -263,11 +263,13 @@ def match_keywords(text: str, config: dict, context_text: str = "") -> tuple[lis
         if g["id"] not in strong | weak:
             continue
         own = {fold(t) for t in g["terms"] + g.get("weak_terms", [])}
-        outside = any(fold(t) not in own for t in ctx_found) or bool((strong | weak) - {g["id"]})
+        # từ ngữ cảnh nằm trong chính tên của nhóm (vd "Ngọc Liên" ⊂ "Phạm Thị Ngọc Liên") không làm ngữ cảnh cho nhóm đó
+        is_own = lambda t: any(fold(t) in o for o in own)
+        outside = any(not is_own(t) for t in ctx_found) or bool((strong | weak) - {g["id"]})
         if g["id"] in weak:
             ok = outside
         elif g.get("requires_context"):
-            ok = any(fold(t) not in own for t in case_found) or bool((strong | weak) - {g["id"]})
+            ok = any(not is_own(t) for t in case_found) or bool((strong | weak) - {g["id"]})
         else:
             ok = True
         (matched if ok else lacking).append(g["id"])
