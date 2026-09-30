@@ -25,6 +25,7 @@ export function SourceList({ sources, labels, options, initial }: {
   const pathname = usePathname();
   const [f, setF] = useState<SourceFilters>(initial);
   const [sort, setSort] = useState<SourceSort>(initial.sort ?? "posted_desc");
+  const [facetsOpen, setFacetsOpen] = useState(false); // chỉ áp dụng trên màn nhỏ; từ lg bộ lọc luôn hiện
   const shown = useMemo(() => filterSources(sources, f, sort), [sources, f, sort]);
   const L = (e: string, v: string | null | undefined) => (v ? labels[e]?.[v] ?? v : "");
 
@@ -39,7 +40,7 @@ export function SourceList({ sources, labels, options, initial }: {
   const active = Object.values(f).filter(Boolean).length;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
       <aside className="space-y-3 lg:sticky lg:top-24 lg:self-start" aria-label="Bộ lọc">
         <label className="block">
           <span className="text-xs font-medium text-ink-2">Tìm trong nội dung, người đăng, chữ trong ảnh</span>
@@ -47,19 +48,26 @@ export function SourceList({ sources, labels, options, initial }: {
             placeholder="vd: Ngọc Liên, giấy mời, tăng giá…"
             className="mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm placeholder:text-muted" />
         </label>
-        {FACETS.map(({ key, label }) => (
-          <label key={key} className="block">
-            <span className="text-xs font-medium text-ink-2">{label}</span>
-            <select value={f[key] ?? ""} onChange={(e) => update({ ...f, [key]: e.target.value || undefined })}
-              className="mt-1 w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-sm">
-              <option value="">Tất cả</option>
-              {(options[key] ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </label>
-        ))}
-        {active > 0 && (
-          <button type="button" onClick={() => update({})} className="text-sm text-accent-ink hover:underline">Xoá bộ lọc</button>
-        )}
+        <button type="button" onClick={() => setFacetsOpen((v) => !v)} aria-expanded={facetsOpen} aria-controls="bo-loc-chi-tiet"
+          className="flex w-full items-center justify-between rounded-lg border border-line bg-surface px-3 py-2 text-sm lg:hidden">
+          <span>Bộ lọc{active > 0 && <> · <strong>{active}</strong> đang dùng</>}</span>
+          <span aria-hidden="true">{facetsOpen ? "▴" : "▾"}</span>
+        </button>
+        <div id="bo-loc-chi-tiet" className={`space-y-3 ${facetsOpen ? "" : "hidden"} lg:block`}>
+          {FACETS.map(({ key, label }) => (
+            <label key={key} className="block">
+              <span className="text-xs font-medium text-ink-2">{label}</span>
+              <select value={f[key] ?? ""} onChange={(e) => update({ ...f, [key]: e.target.value || undefined })}
+                className="mt-1 w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-sm">
+                <option value="">Tất cả</option>
+                {(options[key] ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+          ))}
+          {active > 0 && (
+            <button type="button" onClick={() => update({})} className="text-sm text-accent-ink hover:underline">Xoá bộ lọc</button>
+          )}
+        </div>
       </aside>
 
       <div>

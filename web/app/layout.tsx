@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Bỏ qua tới nội dung
         </a>
         <header className="no-print sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center lg:gap-6">
+          <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
             <Link href="/" className="shrink-0 font-semibold tracking-tight text-ink">
               Roxana Plaza <span className="font-normal text-muted">· theo dõi dư luận</span>
             </Link>

@@ -45,7 +45,7 @@ export function BarChart({ title, bars, orientation = "row", unit = "mục", not
             const w = (b.value / max) * 100;
             const Inner = (
               <>
-                <span className="w-40 shrink-0 truncate text-sm text-ink-2" title={b.label}>{b.label}</span>
+                <span className="w-28 shrink-0 truncate sm:w-40 text-sm text-ink-2" title={b.label}>{b.label}</span>
                 <span className="relative h-5 flex-1">
                   <span className="absolute inset-y-0 left-0 rounded-r-[4px] bg-accent transition-opacity"
                     style={{ width: `${b.value ? Math.max(w, 1.5) : 0}%`, maxHeight: 24, opacity: hover && hover !== b.key ? 0.45 : 1 }} />
@@ -55,14 +55,14 @@ export function BarChart({ title, bars, orientation = "row", unit = "mục", not
             );
             const props = { onPointerEnter: () => setHover(b.key), onPointerLeave: () => setHover(null),
               onFocus: () => setHover(b.key), onBlur: () => setHover(null),
-              className: "flex items-center gap-3 rounded px-1 py-0.5 hover:bg-surface-2",
+              className: "flex items-center gap-2 rounded px-1 py-0.5 hover:bg-surface-2 sm:gap-3",
               "aria-label": `${b.label}: ${b.value} ${unit}` };
             return <li key={b.key}>{b.href ? <a href={b.href} {...props}>{Inner}</a> : <div tabIndex={0} {...props}>{Inner}</div>}</li>;
           })}
         </ul>
       ) : (
         <div className="relative">
-          <div className="flex h-52 items-end gap-2 border-b border-axis px-1 pt-5" role="list">
+          <div className="flex h-52 items-end gap-1 border-b sm:gap-2 border-axis px-1 pt-5" role="list">
             {bars.map((b) => {
               const h = (b.value / max) * 100;
               const active = hover === b.key;
@@ -70,7 +70,7 @@ export function BarChart({ title, bars, orientation = "row", unit = "mục", not
                 <div key={b.key} role="listitem" tabIndex={0} aria-label={`${b.label}: ${b.value} ${unit}`}
                   onPointerEnter={() => setHover(b.key)} onPointerLeave={() => setHover(null)}
                   onFocus={() => setHover(b.key)} onBlur={() => setHover(null)}
-                  className="relative flex h-full flex-1 items-end justify-center">
+                  className="relative flex h-full min-w-0 flex-1 items-end justify-center">
                   {active && (
                     <div className="pointer-events-none absolute bottom-full z-10 mb-1 -translate-y-1 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-surface shadow"
                       style={{ bottom: `${h}%` }}>
@@ -89,9 +89,9 @@ export function BarChart({ title, bars, orientation = "row", unit = "mục", not
               );
             })}
           </div>
-          <div className="mt-1 flex gap-2 px-1">
+          <div className="mt-1 flex gap-1 px-1 sm:gap-2">
             {bars.map((b, i) => (
-              <span key={b.key} className="tabular flex-1 text-center text-[11px] text-muted">
+              <span key={b.key} className="tabular min-w-0 flex-1 overflow-hidden text-center text-[11px] text-muted">
                 {bars.length > 12 && i % Math.ceil(bars.length / 12) ? "" : b.label}
               </span>
             ))}

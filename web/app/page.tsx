@@ -37,7 +37,7 @@ export default async function Overview() {
         <StatTile label="Nhóm kín cần xin vào" value={st.totals.need_join} href="/nhom" tone="warning" />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <BarChart title="Theo tháng đăng (bài + bình luận)" orientation="column" unit="mục"
             bars={known.map((m) => ({ key: m.month, label: fmtMonth(m.month), value: m.count }))}
@@ -55,7 +55,7 @@ export default async function Overview() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <BarChart title="Số lần được nhắc (bài + bình luận)" unit="lần"
             bars={parties.map((p) => ({ key: p.id, label: partyLabel(data, p.id), value: st.by_party[p.id] ?? 0,
@@ -89,7 +89,7 @@ export default async function Overview() {
           <Link href="/bai-viet?importance=cao" className="text-sm text-accent-ink hover:underline">Xem tất cả →</Link>
         </div>
         {newest.length === 0 ? <Empty>Chưa có bài mức cao.</Empty> : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {newest.map((s) => (
               <Link key={s.id} href={`/bai-viet/${s.id}`} className="group rounded-xl border border-line bg-surface p-3 shadow-sm hover:bg-surface-2">
                 <Thumb image={s.main_image} alt={`Ảnh bài ${s.id}`} link={false} className="mb-3 aspect-[4/3]" />
