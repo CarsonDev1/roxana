@@ -37,6 +37,7 @@ def main(argv=None) -> int:
     ap.add_argument("--fb")
     ap.add_argument("--containers")
     ap.add_argument("--pending", action="store_true")
+    ap.add_argument("--events", action="store_true", help="ghi luôn các mốc trong cls.json (mặc định: không — gom lại thành dòng thời gian chuẩn trước)")
     args = ap.parse_args(argv)
     project = Project()
     groups = json.loads(Path(args.containers).read_text(encoding="utf-8")) if args.containers else {}
@@ -61,7 +62,7 @@ def main(argv=None) -> int:
                 gid = (re.search(r"/groups/([^/]+)/", feed["permalink"]) or [None, None])[1]
                 g = groups.get(gid) or {}
                 res = apply_bundle(project, d, cls, args.run, container_id=g.get("id"), container_name=g.get("name"))
-            if res["source"]["status"] == "added" and cls.get("events"):  # mốc dòng thời gian rút ra từ bài
+            if args.events and res["source"]["status"] == "added" and cls.get("events"):  # mốc dòng thời gian rút ra từ bài
                 from add_record import add_records
                 evs = [{"record_type": "event", "related_ids": [res["source"]["id"]], **e} for e in cls["events"]]
                 res["events"] = add_records(project, evs, args.run, project.load_config())
