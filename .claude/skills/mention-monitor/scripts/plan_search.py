@@ -34,7 +34,7 @@ def recent_filter() -> str:
 def queries(config: dict) -> list[tuple[str, str]]:
     seen, out = set(), []
     for g in config["keyword_groups"]:
-        for term in g["terms"]:
+        for term in g["terms"] + g.get("weak_terms", []):
             if term.startswith("#"):
                 continue
             for q in (term, strip_accents(term)):
@@ -49,7 +49,7 @@ def hashtags(config: dict) -> list[tuple[str, str]]:
     for g in config["keyword_groups"]:
         if g["id"] not in HASHTAG_GROUPS:
             continue
-        for term in g["terms"]:
+        for term in g["terms"] + g.get("weak_terms", []):
             tag = strip_accents(term).lstrip("#").replace(" ", "").lower()
             if tag and tag not in seen:
                 seen.add(tag)

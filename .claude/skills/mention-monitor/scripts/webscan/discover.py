@@ -33,7 +33,7 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 def terms(config: dict) -> list[tuple[str, str]]:
     seen, out = set(), []
     for g in config["keyword_groups"]:
-        for t in g["terms"]:
+        for t in g["terms"] + g.get("weak_terms", []):
             if t.startswith("#"):
                 continue
             for q in (t, strip_accents(t)):

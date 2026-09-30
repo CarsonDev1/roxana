@@ -20,6 +20,10 @@ Mỗi bài → `<run>/web/bundles/<key>/`:
 - `article.txt` nguyên văn · `article.html` bản HTML gốc · `meta.json` (link canonical, tiêu đề, tên báo, tác giả, giờ đăng
   từ meta/JSON-LD; không có thì ngày theo Google News → `posted_at_precision: "day"`).
 - Không nhắc tới vụ việc → `meta.json` có `"relevant": false`, không chụp. Chỉ trùng tên → danh sách loại trừ.
+- Khớp từ khoá theo chữ **có dấu** (viết không dấu vẫn khớp; "tường phòng" không khớp "Tường Phong") và theo **nguyên từ**.
+  Tên trần "Roxana", "Tường Phong" (`weak_terms`) cũng là tên người/địa danh → chỉ tính khi bài có từ ngữ cảnh khác.
+- Đổi quy tắc khớp hoặc `config.json` → chạy `scripts/webscan/rematch.py <run>/web --do` trước khi phân loại: bài không còn
+  khớp chuyển `relevant: false` (ghi `rematch`), trùng tên → `<run>/web/exclusions.json` (bản nháp `exclusion`).
 
 ## 3. Ghi kho — `bundle_to_records.py` (`article_draft` / `apply_article`)
 

@@ -8,20 +8,26 @@
       "label": "Roxana Plaza",
       "terms": [
         "Roxana Plaza",
-        "Roxana",
-        "Roxanna",
         "Roxanna Plaza",
         "Roxana Plaza Bình Dương",
+        "RoxanaPlaza",
         "#roxanaplaza"
+      ],
+      "weak_terms": [
+        "Roxana",
+        "Roxanna"
       ]
     },
     {
       "id": "tuongphong",
       "label": "CĐT Tường Phong",
       "terms": [
-        "Tường Phong",
         "Công ty Tường Phong",
-        "CĐT Tường Phong"
+        "CĐT Tường Phong",
+        "chủ đầu tư Tường Phong"
+      ],
+      "weak_terms": [
+        "Tường Phong"
       ]
     },
     {
@@ -71,13 +77,21 @@
     }
   ],
   "context_terms": [
+    "Roxana Plaza",
     "Roxana",
     "Tường Phong",
     "Naviland",
     "Viethome",
     "Bình Hoà",
+    "Bình Hòa",
     "Thuận An",
-    "đòi nhà"
+    "Bình Dương",
+    "đòi nhà",
+    "chung cư",
+    "căn hộ",
+    "chủ đầu tư",
+    "sổ hồng",
+    "bàn giao"
   ],
   "key_parties": [
     {

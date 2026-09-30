@@ -139,3 +139,38 @@ def test_project_resolve_and_rel(project):
     assert path == project.root / "screenshots" / "facebook" / "x.png"
     assert project.rel(path) == "screenshots/facebook/x.png"
     assert project.resolve(str(path)) == path
+
+
+WEAK_CFG = {
+    "keyword_groups": [
+        {"id": "roxana", "label": "Roxana Plaza", "terms": ["Roxana Plaza"], "weak_terms": ["Roxana"]},
+        {"id": "tuongphong", "label": "CĐT Tường Phong", "terms": ["CĐT Tường Phong"], "weak_terms": ["Tường Phong"]},
+        {"id": "naviland", "label": "Naviland", "terms": ["Naviland"]},
+    ],
+    "context_terms": ["Roxana", "Tường Phong", "Naviland", "Thuận An", "căn hộ"],
+}
+
+
+def test_accented_term_does_not_match_other_accents():
+    # "tường phòng" (bức tường của căn phòng) không phải "Tường Phong"
+    assert match_keywords("Vết nứt trên tường phòng khách ở Naviland", WEAK_CFG)[0] == ["naviland"]
+    # viết không dấu vẫn khớp; chữ có dấu đúng như term cũng khớp
+    assert match_keywords("CĐT Tuong Phong lua dao", WEAK_CFG)[0] == ["tuongphong"]
+    assert match_keywords("cdt tuong phong", WEAK_CFG)[0] == ["tuongphong"]
+
+
+def test_weak_term_needs_context():
+    matched, lacking = match_keywords("BTV Roxana Vancea dẫn bản tin", WEAK_CFG)
+    assert matched == [] and lacking == ["roxana"]
+    matched, lacking = match_keywords("TS Bùi Tường Phong phát biểu", WEAK_CFG)
+    assert matched == [] and lacking == ["tuongphong"]
+    # từ yếu của nhóm này không tự làm ngữ cảnh cho chính nó, nhưng làm ngữ cảnh cho nhóm khác được
+    assert match_keywords("Roxana của Tường Phong", WEAK_CFG)[0] == ["roxana", "tuongphong"]
+    assert match_keywords("Chủ căn hộ Roxana", WEAK_CFG)[0] == ["roxana"]
+    assert match_keywords("Roxana", WEAK_CFG, context_text="Nhóm cư dân Thuận An")[0] == ["roxana"]
+
+
+def test_terms_match_whole_words():
+    assert match_keywords("Naviland", WEAK_CFG)[0] == ["naviland"]
+    assert match_keywords("Navilandia", WEAK_CFG)[0] == []
+    assert match_keywords("#Naviland.", WEAK_CFG)[0] == ["naviland"]

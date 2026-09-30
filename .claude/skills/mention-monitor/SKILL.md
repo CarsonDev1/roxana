@@ -16,7 +16,7 @@ Facebook chỉ chạy **một luồng** (một tài khoản — nhiều luồng 
 1. **Chỉ đọc.** Không thích, bình luận, chia sẻ, nhắn tin, xin vào nhóm, theo dõi, báo cáo. Không bấm nút gửi/đăng/xác nhận.
 2. **Không vượt rào.** Không vượt CAPTCHA, checkpoint, tường đăng nhập, giới hạn tốc độ. Gặp là dừng (facebook.md, mục Điều kiện dừng). Không tự đăng nhập — người dùng tự đăng nhập Chrome.
 3. **Riêng tư người đăng.** Với cá nhân thường chỉ ghi: tên hiển thị, link gắn trên tên, loại tài khoản, huy hiệu trong nhóm — đúng như trên bài. **Không** mở trang cá nhân để tra thêm; **không** ghi số điện thoại, địa chỉ, nơi làm, người thân; **không** đối chiếu danh tính giữa các nền tảng. Ngoại lệ: các bên trong `key_parties` của `config.json` (vai trò đã được báo chí công bố).
-4. **Lọc trùng tên.** Nhóm từ khoá có `requires_context: true` mà nội dung (hoặc bài chứa bình luận, hoặc tên nhóm) không có `context_terms` → ghi bản ghi `exclusion` (link + lý do + trích ≤ 100 ký tự, **không** tên người đăng), không ghi `source`.
+4. **Lọc trùng tên.** Nhóm từ khoá có `requires_context: true` (hoặc chỉ khớp tên trần trong `weak_terms`) mà nội dung (hoặc bài chứa bình luận, hoặc tên nhóm) không có `context_terms` → ghi bản ghi `exclusion` (link + lý do + trích ≤ 100 ký tự, **không** tên người đăng), không ghi `source`.
 5. **Bằng chứng không sửa.** Không cắt, nén, vẽ lên ảnh gốc. Không sửa/xoá dòng trong `records.jsonl` — mọi ghi chép đi qua `add_record.py`.
 6. **Không tuyên bố "đã đủ", "không sót".** Luôn báo phần chưa quét được.
 7. **Giữ nguyên văn**, kể cả lời lẽ gay gắt. Phân loại chỉ mô tả nội dung, không phải kết luận pháp lý.

@@ -219,20 +219,56 @@ def normalize_author_url(url: str) -> str:
     return urlunsplit((clean.scheme, clean.netloc, clean.path, urlencode(params), ""))
 
 
+class _Haystack:
+    """Text prepared for term search: lower-cased, plus a per-character accent-free copy at the same positions."""
+
+    def __init__(self, text: str):
+        self.low = norm_text(text).lower()
+        self.flat = "".join(f if len(f := strip_accents(ch).lower()) == 1 else ch for ch in self.low)
+
+    def has(self, term: str) -> bool:
+        """Whole-word, case-insensitive. Each character must be written either exactly as in the term or without
+        its accent — "Tuong Phong"/"tường phong" match "Tường Phong", "tường phòng" does not."""
+        t = norm_text(term).lower()
+        ft = "".join(f if len(f := strip_accents(ch).lower()) == 1 else ch for ch in t)
+        if not ft:
+            return False
+        i = self.flat.find(ft)
+        while i >= 0:
+            j = i + len(ft)
+            bounded = (i == 0 or not self.flat[i - 1].isalnum() or not ft[0].isalnum()) and \
+                      (j == len(self.flat) or not self.flat[j].isalnum() or not ft[-1].isalnum())
+            if bounded and all(o == a or o == p for o, a, p in zip(self.low[i:j], t, ft)):
+                return True
+            i = self.flat.find(ft, i + 1)
+        return False
+
+
 def match_keywords(text: str, config: dict, context_text: str = "") -> tuple[list[str], list[str]]:
-    """Return (matched group ids, group ids found but dropped for lack of a context term)."""
-    folded = fold(text)
-    context = fold(f"{text} {context_text}")
-    has_context = any(fold(term) in context for term in config.get("context_terms", []))
+    """Return (matched group ids, group ids found but dropped for lack of a context term).
+
+    A group matches on any of its `terms`. `weak_terms` (a bare name that is also a person's or place's name) count
+    only with context: a context term that is not one of the group's own terms, or another group's match.
+    `requires_context` groups need context for every term."""
+    body, ctx = _Haystack(text), _Haystack(f"{text} {context_text}")
+    ctx_found = [t for t in config.get("context_terms", []) if ctx.has(t)]
+    groups = config.get("keyword_groups", [])
+    strong = {g["id"] for g in groups if any(body.has(t) for t in g["terms"])}
+    weak = {g["id"] for g in groups if g["id"] not in strong and any(body.has(t) for t in g.get("weak_terms", []))}
     matched: list[str] = []
     lacking: list[str] = []
-    for group in config.get("keyword_groups", []):
-        if not any(fold(term) in folded for term in group["terms"]):
+    for g in groups:
+        if g["id"] not in strong | weak:
             continue
-        if group.get("requires_context") and not has_context:
-            lacking.append(group["id"])
+        own = {fold(t) for t in g["terms"] + g.get("weak_terms", [])}
+        outside = any(fold(t) not in own for t in ctx_found) or bool((strong | weak) - {g["id"]})
+        if g["id"] in weak:
+            ok = outside
+        elif g.get("requires_context"):
+            ok = bool(ctx_found) or bool(strong - {g["id"]})
         else:
-            matched.append(group["id"])
+            ok = True
+        (matched if ok else lacking).append(g["id"])
     return matched, lacking
 
 
