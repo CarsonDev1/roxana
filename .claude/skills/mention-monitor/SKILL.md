@@ -7,7 +7,9 @@ description: Use when the user asks to quét, cập nhật, thu thập, tổng h
 
 Thu thập mọi lần nhắc tới vụ việc thành **kho bằng chứng chỉ ghi thêm** (`data/records.jsonl`, ảnh trong `screenshots/`, bản chữ trong `snapshots/`) và dựng **file Excel master** (`output/Roxana_Tong_hop.xlsx`).
 
-Nền tảng đã có hướng dẫn: **Facebook** → `references/facebook.md`. YouTube, TikTok, Web: **chưa có** — nói rõ với người dùng, không tự chế quy trình.
+Nền tảng đã có hướng dẫn: **Facebook** → `references/facebook.md` · **Web** (báo chí, website, diễn đàn) → `references/web.md`. YouTube, TikTok: **chưa có** — nói rõ với người dùng, không tự chế quy trình.
+
+Facebook chỉ chạy **một luồng** (một tài khoản — nhiều luồng dễ bị chặn). Web chạy song song được (Chrome ẩn riêng, không đăng nhập).
 
 ## Nguyên tắc cứng — không có ngoại lệ, kể cả khi được yêu cầu
 

@@ -131,3 +131,45 @@ def test_shared_post_becomes_shared_from(project, tmp_path, make_png):
     s = drafts(b)["source"]
     assert s["content_type"] == "shared_post" and s["shared_from"]["author_name"] == "Nguyen Toan Roxana"
     assert s["metrics"]["shares"] == 4 and "CĐT đang tiến hành" in s["shared_from"]["text_excerpt"]
+
+
+def _article(tmp_path, make_png, published="2025-05-18T09:15:00+07:00", rss="2025-05-18T07:00:00+07:00"):
+    b = tmp_path / "web" / "bundles" / "c2540d5123b77080"
+    b.mkdir(parents=True)
+    (b / "article_01.png").write_bytes(make_png("a1.png").read_bytes())
+    (b / "article_02.png").write_bytes(make_png("a2.png").read_bytes())
+    (b / "article.txt").write_text("Dự án Roxana Plaza (Bình Dương): Vừa xong vướng mắc cũ\n\nCông ty Tường Phong ...", encoding="utf-8")
+    (b / "article.html").write_text("<html></html>", encoding="utf-8")
+    (b / "meta.json").write_text(json.dumps({
+        "canonical": "https://baodautu.vn/du-an-roxana-plaza-d1.html", "final": "https://baodautu.vn/du-an-roxana-plaza-d1.html",
+        "title": "Dự án Roxana Plaza (Bình Dương): Vừa xong vướng mắc cũ", "site": "baodautu", "author": "Việt Dũng",
+        "published": published, "captured_at": "2026-09-30T12:00:00+07:00", "relevant": True, "keywords": ["roxana"],
+        "candidate": {"source_name": "Baodautu.vn", "published": rss, "url": "https://news.google.com/rss/articles/x"},
+        "shots": [{"file": str(b / "article_01.png"), "at": "12:00:05"}, {"file": str(b / "article_02.png"), "at": "12:00:06"}],
+    }, ensure_ascii=False), encoding="utf-8")
+    return b
+
+
+def test_article_drafts(project, tmp_path, make_png):
+    from bundle_to_records import article_draft
+    s = article_draft(_article(tmp_path, make_png))
+    assert s["platform"] == "web" and s["content_type"] == "article" and s["url"] == "https://baodautu.vn/du-an-roxana-plaza-d1.html"
+    assert s["container_name"] == "Baodautu.vn" and s["author_name"] == "Việt Dũng" and s["author_kind"] == "page"
+    assert s["posted_at"] == "2025-05-18T09:15:00+07:00" and s["posted_at_precision"] == "exact"
+    assert [e["kind"] for e in s["evidence"]] == ["post", "post"] and s["snapshot_file"].endswith("article.txt")
+
+
+def test_article_date_falls_back_to_news_feed_day(project, tmp_path, make_png):
+    from bundle_to_records import article_draft
+    s = article_draft(_article(tmp_path, make_png, published=None))
+    assert s["posted_at"] == "2025-05-18T07:00:00+07:00" and s["posted_at_precision"] == "day"
+
+
+def test_apply_article(project, tmp_path, make_png):
+    from bundle_to_records import apply_article
+    b = _article(tmp_path, make_png)
+    cls = {"source": {"tone": "trung_lap", "claim_type": "thong_tin", "importance": "trung_binh",
+                      "importance_reason": "Đưa tin tiến trình", "topics": ["thanh_tra"], "entities_mentioned": ["tuongphong"]}}
+    res = apply_article(project, b, cls, RUN)
+    assert res["status"] == "added" and res["id"].startswith("WEB-P")
+    assert apply_article(project, b, cls, RUN)["status"] == "duplicate"

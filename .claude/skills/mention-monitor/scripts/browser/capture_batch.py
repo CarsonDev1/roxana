@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from capture_post import capture  # noqa: E402
 from capture_photo import LARGEST_IMAGE  # noqa: E402
 from collect_feed import blocked  # noqa: E402
+from window import own_window, request_stop, stop_requested  # noqa: E402
 
 DOC_ALT = re.compile(r"văn bản|text|tài liệu|document|giấy|biên bản|thông báo", re.I)
 
@@ -91,6 +92,7 @@ def main(argv=None) -> int:
     ap.add_argument("bundles")
     ap.add_argument("feeds", nargs="+")
     ap.add_argument("--max", type=int, default=0)
+    ap.add_argument("--own-window", action="store_true")
     args = ap.parse_args(argv)
     root = Path(args.bundles)
     items = []
@@ -104,9 +106,14 @@ def main(argv=None) -> int:
     done = 0
     with sync_playwright() as pw:
         b = pw.chromium.connect_over_cdp("http://127.0.0.1:9222")
-        p = [q for q in b.contexts[0].pages if not q.url.startswith("devtools")][-1]
-        p.bring_to_front()
+        if args.own_window:
+            p, close_window = own_window(b)
+        else:
+            p, close_window = [q for q in b.contexts[0].pages if not q.url.startswith("devtools")][-1], (lambda: None)
+            p.bring_to_front()
         for d in todo:
+            if stop_requested():
+                print(json.dumps({"status": "stopped", "done": done}, ensure_ascii=False)); close_window(); return 3
             out = root / key_of(d["permalink"])
             out.mkdir(parents=True, exist_ok=True)
             (out / "feed.json").write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -114,8 +121,9 @@ def main(argv=None) -> int:
                 p.goto(d["permalink"], wait_until="domcontentloaded", timeout=60000)
                 p.wait_for_timeout(random.randint(3500, 6000))
                 if (why := blocked(p)):
+                    request_stop(f"capture_batch {d['permalink']}: {why}")
                     print(json.dumps({"status": "blocked", "reason": why, "done": done}, ensure_ascii=False))
-                    return 3
+                    close_window(); return 3
                 unavailable = p.evaluate("/Nội dung này hiện không khả dụng|This content isn't available|Bạn hiện không xem được nội dung này/i.test(document.body.innerText)")
                 if unavailable:
                     (out / "log.json").write_text(json.dumps({"unavailable": True, "url": p.url,
@@ -130,8 +138,9 @@ def main(argv=None) -> int:
             except Exception as exc:
                 (out / "error.txt").write_text(f"{time.strftime('%H:%M:%S')} {type(exc).__name__}: {exc}", encoding="utf-8")
                 if (why := blocked(p)):
+                    request_stop(f"capture_batch {d['permalink']}: {why}")
                     print(json.dumps({"status": "blocked", "reason": why, "done": done}, ensure_ascii=False))
-                    return 3
+                    close_window(); return 3
                 continue
             done += 1
             print(json.dumps({"done": done, "of": len(todo), "key": out.name, "comments": log.get("comment_count"),
@@ -140,6 +149,7 @@ def main(argv=None) -> int:
             if args.max and done >= args.max:
                 break
             p.wait_for_timeout(random.randint(3000, 8000))
+        close_window()
     print(json.dumps({"status": "ok", "done": done, "remaining": len(todo) - done}, ensure_ascii=False))
     return 0
 

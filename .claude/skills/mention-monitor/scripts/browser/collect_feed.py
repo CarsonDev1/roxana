@@ -17,6 +17,9 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from window import own_window, request_stop, stop_requested  # noqa: E402
+
 BLOCK_SIGNS = ("tạm thời bị chặn", "temporarily blocked", "checkpoint", "xác minh danh tính", "captcha",
                "Bạn đang đi quá nhanh", "You're going too fast", "Đăng nhập Facebook", "Log in to Facebook")
 POST_RE = re.compile(r"/(?:groups/[^/]+/(?:posts|permalink)/\d+|permalink\.php\?|[^/?]+/posts/[^/?]+|photo/?\?fbid=|"
@@ -66,6 +69,9 @@ def main(argv=None) -> int:
     ap.add_argument("--max", type=int, default=0)
     ap.add_argument("--stop-known", type=int, default=0)
     ap.add_argument("--known")
+    ap.add_argument("--own-window", action="store_true", help="mở cửa sổ Chrome riêng (chạy song song)")
+    ap.add_argument("--media-fallback", action="store_true", help="không có link bài thì lấy link video/ảnh")
+    ap.add_argument("--items", help="CSS selector của từng mục (mặc định: tự nhận: div[aria-posinset] hoặc con của [role=feed])")
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -77,24 +83,32 @@ def main(argv=None) -> int:
 
     with sync_playwright() as pw:
         b = pw.chromium.connect_over_cdp("http://127.0.0.1:9222")
-        p = [q for q in b.contexts[0].pages if not q.url.startswith("devtools")][-1]
-        p.bring_to_front()
+        if args.own_window:
+            p, close_window = own_window(b)
+        else:
+            p, close_window = [q for q in b.contexts[0].pages if not q.url.startswith("devtools")][-1], (lambda: None)
+            p.bring_to_front()
         p.goto(args.url, wait_until="domcontentloaded", timeout=60000)
         p.wait_for_timeout(5000)
         if (why := blocked(p)):
-            print(json.dumps({"status": "blocked", "reason": why}, ensure_ascii=False)); return 3
+            request_stop(f"collect_feed {args.url}: {why}")
+            print(json.dumps({"status": "blocked", "reason": why}, ensure_ascii=False)); close_window(); return 3
         meta = {"url": args.url, "started_at": started, **p.evaluate(HEADER)}
         (out.with_suffix(".meta.json")).write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
 
+        sel = args.items or ("div[aria-posinset]" if p.locator("div[aria-posinset]").count()
+                             else '[role="feed"] > div, [role="main"] div[role="article"]')
         processed, stall, new, known_run, last_count = set(), 0, 0, 0, 0
         reached_end = False
         with open(out, "a", encoding="utf-8") as f:
             while True:
-                arts = p.locator("div[aria-posinset]")
+                arts = p.locator(sel)
                 n = arts.count()
                 for i in range(n):
                     art = arts.nth(i)
-                    pos = art.get_attribute("aria-posinset")
+                    pos = art.get_attribute("aria-posinset") or str(i + 1)
+                    if not art.inner_text(timeout=2000).strip():
+                        continue  # khung trống / đang tải
                     if pos in processed:
                         continue
                     processed.add(pos)
@@ -139,6 +153,10 @@ def main(argv=None) -> int:
                                     permalink = f"https://www.facebook.com/groups/{gid.group(1)}/posts/{m.group(1)}/"
                                     break
                     info = art.evaluate(MESSAGE)
+                    if not permalink and args.media_fallback:
+                        media = art.evaluate(r"el => [...el.querySelectorAll('a[href]')].map(a => a.href).find(h => /\/(reel|videos)\/|\/watch\/?\?v=|\/photo\/?\?fbid=/.test(h)) || null")
+                        if media:
+                            permalink = media.split("&__cft__")[0].split("?__cft__")[0]
                     if not permalink:
                         permalink = f"{args.url}#pos{pos}"  # không lấy được link riêng — ghi lại để xử lý tay
                     if permalink in done:
@@ -160,10 +178,13 @@ def main(argv=None) -> int:
                 if (args.max and new >= args.max) or (args.stop_known and known_run >= args.stop_known):
                     break
                 if (why := blocked(p)):
-                    print(json.dumps({"status": "blocked", "reason": why, "new": new}, ensure_ascii=False)); return 3
+                    request_stop(f"collect_feed {args.url}: {why}")
+                    print(json.dumps({"status": "blocked", "reason": why, "new": new}, ensure_ascii=False)); close_window(); return 3
+                if stop_requested():
+                    print(json.dumps({"status": "stopped", "new": new}, ensure_ascii=False)); close_window(); return 3
                 p.mouse.wheel(0, random.randint(1400, 2200))
                 p.wait_for_timeout(random.randint(2500, 4500))
-                count = p.locator("div[aria-posinset]").count()
+                count = p.locator(sel).count()
                 last_pos = max((int(x) for x in processed), default=0)
                 stall = stall + 1 if count <= last_count and last_pos >= count else 0
                 last_count = max(last_count, count)
@@ -175,6 +196,7 @@ def main(argv=None) -> int:
                     posts_seen=len(processed))
         out.with_suffix(".meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
         print(json.dumps({"status": "ok", **meta}, ensure_ascii=False))
+        close_window()
     return 0
 
 

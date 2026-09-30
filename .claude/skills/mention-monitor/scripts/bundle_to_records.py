@@ -231,6 +231,63 @@ def apply_bundle(project: Project, bundle: Path, cls: dict, run_id: str, contain
     return out
 
 
+def _iso_any(value: str | None) -> tuple[str | None, bool]:
+    """ISO / 'M/D/YYYY h:mm:ss AM' → (ISO +07:00, has_time)."""
+    if not value:
+        return None, False
+    v = value.strip()
+    try:
+        dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        has_time = "T" in v or ":" in v
+    except ValueError:
+        m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?", v, re.I)
+        if not m:
+            return None, False
+        mo, d, y, h, mi = (int(x) for x in m.groups()[:5])
+        if m.group(6):
+            h = h % 12 + (12 if m.group(6).upper() == "PM" else 0)
+        dt, has_time = datetime(y, mo, d, h, mi, tzinfo=TZ), True
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=TZ)
+    return dt.astimezone(TZ).isoformat(timespec="seconds"), has_time
+
+
+def article_draft(bundle: Path) -> dict:
+    """Web article bundle (webscan/capture_articles.py) → source record without classification."""
+    bundle = Path(bundle)
+    meta = _load(bundle, "meta.json", {})
+    cand = meta.get("candidate") or {}
+    posted, exact = _iso_any(meta.get("published"))
+    precision = "exact" if posted and exact else "day" if posted else "unknown"
+    if not posted and cand.get("published"):
+        posted, precision = _iso_any(cand["published"])[0], "day"  # ngày theo nguồn tin (Google News), không có giờ chắc chắn
+    site = cand.get("source_name") or meta.get("site")
+    date = (meta.get("captured_at") or "")[:10]
+    return {
+        "record_type": "source", "platform": "web", "content_type": "article",
+        "url": meta.get("canonical") or meta.get("final"), "url_kind": "permalink",
+        "container_name": site, "author_name": meta.get("author") or site, "author_url": None, "author_kind": "page",
+        "posted_at_raw": meta.get("published") or cand.get("published") or "", "posted_at": posted,
+        "posted_at_precision": precision, "text": (bundle / "article.txt").read_text(encoding="utf-8"),
+        "attachments": [], "metrics": {}, "captured_at": meta.get("captured_at"),
+        "evidence": [{"file": s["file"], "kind": "post",
+                      "shows": f"Bài báo — tiêu đề và nội dung (phần {i}/{len(meta.get('shots') or [])})",
+                      "captured_at": f"{date}T{s['at']}+07:00" if date and s.get("at") else None,
+                      "capture_tool": "playwright"} for i, s in enumerate(meta.get("shots") or [], 1)],
+        "snapshot_file": str(bundle / "article.txt"),
+        "notes": f"Tiêu đề: {meta.get('title')}. Bản HTML gốc lưu kèm: {bundle / 'article.html'}",
+    }
+
+
+def apply_article(project: Project, bundle: Path, cls: dict, run_id: str) -> dict:
+    config = project.load_config()
+    src = article_draft(Path(bundle))
+    _merge(src, cls.get("source") or {}, "bài báo")
+    src["keywords_matched"], _ = match_keywords(src["text"], config)
+    [res] = add_records(project, [src], run_id, config)
+    return res
+
+
 def main(argv=None) -> int:
     setup_stdout()
     ap = argparse.ArgumentParser()
