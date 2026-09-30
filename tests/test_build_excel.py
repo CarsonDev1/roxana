@@ -95,7 +95,7 @@ def test_sources_sheet(populated):
     assert ws.cell(r, h["Bình luận (đã thu)"]).value.startswith("=COUNTIF(")
     assert eval_formula(wb, ws.cell(r, h["Bình luận (đã thu)"]).value) == 3
     legacy_r = row_of(ws, "FB-P00002")
-    assert ws.cell(legacy_r, h["Ảnh"]).value == "Từ file cũ — chưa có ảnh"
+    assert ws.cell(legacy_r, h["Ảnh"]).value == "Chưa có ảnh"
     assert ws.cell(legacy_r, h["Nguồn dữ liệu"]).value == "Từ file cũ"
     assert ws.freeze_panes == "B2" and ws.auto_filter.ref.startswith("A1:")
     assert ws.cell(1, 1).font.name == "Arial"

@@ -49,7 +49,7 @@ SHEET_DESCRIPTIONS = {
 TAB_COLORS = {S_OVERVIEW: "548235", S_TIMELINE: "548235", S_EVIDENCE: "548235",
               S_SOURCES: "2F5597", S_COMMENTS: "2F5597", S_PEOPLE: "2F5597", S_CONTAINERS: "2F5597",
               S_LOG: "7F7F7F", S_CHANGES: "7F7F7F", S_EXCLUDED: "7F7F7F", S_LEGEND: "BF8F00"}
-NO_IMAGE = "Từ file cũ — chưa có ảnh"
+NO_IMAGE = "Chưa có ảnh"
 MONTH_UNKNOWN = "Không rõ"
 PLATFORMS = ["facebook", "web", "youtube", "tiktok"]
 METRIC_NAMES = {"reactions": "Thích", "comments": "Bình luận", "shares": "Chia sẻ", "views": "Lượt xem",
@@ -134,7 +134,7 @@ def issues_text(issues) -> str:
 def item_notes(item: dict) -> str:
     parts = [item.get("notes")]
     if item.get("supersedes"):
-        parts.append(f"Thay cho {item['supersedes']} (bản từ file cũ)")
+        parts.append(f"Thay cho {item['supersedes']}")
     if item.get("status") == "edited":
         parts.append("Đã sửa — xem sheet Lịch sử thay đổi")
     if item.get("status") == "deleted":
@@ -609,8 +609,6 @@ def write_legend(ws, ctx: Ctx) -> None:
         ("Ảnh cuộn", "Ảnh chụp liên tiếp phần bình luận; cột ghi tên file và bình luận nằm ở vị trí thứ mấy trong ảnh"),
         ("Trạng thái", "Còn · Đã sửa (nội dung mới ở sheet Lịch sử thay đổi, nội dung cũ vẫn giữ) · Đã xoá · "
                        "Không truy cập được"),
-        ("Nguồn dữ liệu", "Quét = do skill thu thập, có ảnh và mã băm · Từ file cũ = nhập từ file tổng hợp "
-                          "ngày 22/08/2026, chưa có ảnh"),
         ("Kiểm tra ảnh không bị sửa", "Mở Command Prompt, chạy: certutil -hashfile \"<đường dẫn ảnh>\" SHA256 — "
                                       "kết quả phải trùng cột SHA-256"),
         ("Chuyển file sang máy khác", "Phải chép cả thư mục dự án (gồm screenshots, snapshots, output) — "
@@ -618,8 +616,6 @@ def write_legend(ws, ctx: Ctx) -> None:
         ("Lưu ý ngôn từ", "Nội dung nguyên văn giữ nguyên lời người đăng. Các từ như \"lừa đảo\" là cách người đăng "
                           "gọi, không phải kết luận pháp lý. Phân loại thái độ/cáo buộc chỉ mô tả nội dung."),
     ]
-    if ctx.config.get("disclaimer"):
-        rows.append(("Lưu ý từ file cũ", ctx.config["disclaimer"]))
     for r, (a, b) in enumerate(rows, 1):
         write_cell(ws, r, 1, a)
         write_cell(ws, r, 2, b)

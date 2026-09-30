@@ -13,7 +13,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/bai-viet
   const sp = await searchParams;
   const initial = {
     q: first(sp.q), platform: first(sp.platform), container: first(sp.container), tone: first(sp.tone),
-    importance: first(sp.importance), party: first(sp.party), topic: first(sp.topic), origin: first(sp.origin),
+    importance: first(sp.importance), party: first(sp.party), topic: first(sp.topic),
     status: first(sp.status), sort: first(sp.sort) as SourceSort | undefined,
   };
   // Danh sách chỉ cần phần tóm tắt; bỏ các trường nặng để trang nhẹ.

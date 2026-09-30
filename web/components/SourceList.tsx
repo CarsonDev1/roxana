@@ -15,7 +15,7 @@ type Labels = Record<string, Record<string, string>>;
 const FACETS: { key: keyof SourceFilters; label: string }[] = [
   { key: "platform", label: "Nền tảng" }, { key: "container", label: "Nhóm/trang" }, { key: "tone", label: "Thái độ" },
   { key: "importance", label: "Mức quan trọng" }, { key: "party", label: "Bên được nhắc" },
-  { key: "topic", label: "Chủ đề" }, { key: "origin", label: "Nguồn dữ liệu" }, { key: "status", label: "Trạng thái" },
+  { key: "topic", label: "Chủ đề" }, { key: "status", label: "Trạng thái" },
 ];
 
 export function SourceList({ sources, labels, options, initial }: {
@@ -96,7 +96,6 @@ export function SourceList({ sources, labels, options, initial }: {
                     <ImportanceBadge value={s.importance} label={L("importance", s.importance)} />
                     <ToneBadge value={s.tone} label={L("tone", s.tone)} />
                     <StatusBadge value={s.status} label={L("recheck_status", s.status)} />
-                    {s.origin === "legacy" && <Badge tone="muted">Từ file cũ — chưa có ảnh</Badge>}
                     {s.comments_collected > 0 && <Badge tone="neutral">{s.comments_collected} bình luận</Badge>}
                   </div>
                 </div>

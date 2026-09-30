@@ -65,7 +65,7 @@ def recheck_due(view: View, config: dict, run_id: str, now: datetime | None = No
                  "text_excerpt": _excerpt(s.get("text")), "last_checked": s.get("last_checked_at") or s.get("captured_at")}
         if s.get("origin") == "legacy":
             due.append({**entry, "priority": PRIORITY["legacy"],
-                        "reason": "Từ file cũ — cần chụp ảnh và ghi bản quét thay thế"})
+                        "reason": "Chưa có ảnh chụp — cần thu thập"})
             continue
         days = policy.get(s.get("importance"), 30)
         last = parse_iso(entry["last_checked"])

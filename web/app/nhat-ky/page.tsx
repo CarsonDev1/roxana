@@ -24,7 +24,7 @@ export default async function LogPage() {
       </nav>
 
       <SectionTitle id="quet">Nhật ký quét</SectionTitle>
-      {data.search_logs.length === 0 ? <Empty>Chưa có lần tìm kiếm nào được ghi (hai bài thử được mở trực tiếp bằng link).</Empty> : (
+      {data.search_logs.length === 0 ? <Empty>Chưa có lần tìm kiếm nào được ghi.</Empty> : (
         <div className="mb-8 overflow-x-auto rounded-xl border border-line bg-surface">
           <table className="w-full text-sm">
             <thead className="bg-surface-2 text-ink-2"><tr>

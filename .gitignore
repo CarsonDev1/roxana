@@ -7,3 +7,4 @@ output/
 legacy/
 __pycache__/
 .pytest_cache/
+archive/

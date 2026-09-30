@@ -35,7 +35,6 @@ export default async function LegendPage() {
             <li>Ảnh chụp chỉ gồm vùng của bài/bình luận, chụp ngay lúc thu thập — không có thanh Facebook, menu hay thông tin của tài khoản quét. Ảnh gốc không bao giờ bị sửa; ảnh thu nhỏ là bản phái sinh để xem nhanh.</li>
             <li>Kiểm tra ảnh không bị sửa: mở Command Prompt, chạy <code className="font-mono">certutil -hashfile &quot;&lt;đường dẫn ảnh&gt;&quot; SHA256</code> — kết quả phải trùng mã SHA-256 hiển thị.</li>
             <li>Một bài có thể có nhiều lần chụp (vd chụp lại khi kiểm tra); trang hiện lần mới nhất, các lần trước vẫn giữ trong kho và xem được ở trang bài.</li>
-            <li>“Từ file cũ — chưa có ảnh”: mục nhập từ file tổng hợp ngày 22/08/2026, chưa được chụp lại.</li>
             <li>Độ chính xác thời gian: “Chính xác” = lấy từ ô hiện ra khi rê chuột lên mốc thời gian; “Ước lượng” = quy đổi từ “2 giờ”, “3 ngày”… theo lúc thu thập.</li>
             <li>Chuyển sang máy khác: chép cả thư mục dự án (data, screenshots, snapshots, output).</li>
           </ul>
@@ -43,7 +42,6 @@ export default async function LegendPage() {
         <Card className="lg:col-span-2">
           <SectionTitle>Lưu ý ngôn từ</SectionTitle>
           <p className="text-sm text-ink-2">Nội dung nguyên văn giữ nguyên lời người đăng, kể cả lời lẽ gay gắt. Các từ như “lừa đảo” là cách người đăng gọi, không phải kết luận pháp lý. Phân loại thái độ/cáo buộc chỉ mô tả nội dung.</p>
-          {data.disclaimer && <p className="mt-2 text-sm text-ink-2"><span className="font-medium">Lưu ý từ file cũ:</span> {data.disclaimer}</p>}
         </Card>
       </div>
     </>

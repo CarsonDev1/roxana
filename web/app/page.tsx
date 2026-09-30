@@ -41,7 +41,7 @@ export default async function Overview() {
         <Card className="lg:col-span-2">
           <BarChart title="Theo tháng đăng (bài + bình luận)" orientation="column" unit="mục"
             bars={known.map((m) => ({ key: m.month, label: fmtMonth(m.month), value: m.count }))}
-            note={unknown ? `${unknown} mục không rõ ngày đăng (chủ yếu từ file cũ) — không tính vào biểu đồ.` : undefined} />
+            note={unknown ? `${unknown} mục không rõ ngày đăng — không tính vào biểu đồ.` : undefined} />
         </Card>
         <Card>
           <BarChart title="Theo thái độ (bài + bình luận)"
@@ -65,8 +65,7 @@ export default async function Overview() {
           <SectionTitle>Chưa quét được / giới hạn</SectionTitle>
           {data.search_logs.length === 0 && (
             <p className="mb-2 rounded-lg bg-warning-wash p-2 text-sm">
-              <span aria-hidden="true">! </span><strong>Chưa chạy lần tìm kiếm nào</strong> — dữ liệu hiện có chỉ gồm file tổng hợp cũ
-              và các bài được mở trực tiếp bằng link. Phần lớn Facebook chưa được quét.
+              <span aria-hidden="true">! </span><strong>Chưa chạy lần tìm kiếm nào</strong> — phần lớn Facebook chưa được quét.
             </p>
           )}
           {st.gaps.length === 0 ? (data.search_logs.length ? <Empty>Không có giới hạn nào được ghi nhận.</Empty> : null) : (

@@ -3,7 +3,7 @@ import type { Comment, Source } from "./types";
 
 export type SourceFilters = {
   q?: string; platform?: string; container?: string; tone?: string; importance?: string; party?: string;
-  topic?: string; origin?: string; status?: string;
+  topic?: string; status?: string;
 };
 export type SourceSort = "posted_desc" | "posted_asc" | "captured_desc" | "importance";
 
@@ -30,7 +30,6 @@ export function filterSources(list: Source[], f: SourceFilters, sort: SourceSort
     && (!f.importance || s.importance === f.importance)
     && (!f.party || (s.entities_mentioned ?? []).includes(f.party))
     && (!f.topic || (s.topics ?? []).includes(f.topic))
-    && (!f.origin || s.origin === f.origin)
     && (!f.status || s.status === f.status));
   const cmp: Record<SourceSort, (a: Source, b: Source) => number> = {
     posted_desc: (a, b) => byDate(a.posted_at, b.posted_at, -1) || a.id.localeCompare(b.id),

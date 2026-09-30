@@ -19,7 +19,6 @@ export function sourceOptions(data: SiteData): Record<string, Option[]> {
     party: data.parties.filter((p) => s.some((x) => (x.entities_mentioned ?? []).includes(p.id)))
       .map((p) => ({ value: p.id, label: p.label || p.name })),
     topic: fromLabels(data, "topics", set(s.flatMap((x) => x.topics ?? []))),
-    origin: fromLabels(data, "origin", set(s.map((x) => x.origin))),
     status: fromLabels(data, "recheck_status", set(s.map((x) => x.status))),
   };
 }

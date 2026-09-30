@@ -31,14 +31,13 @@ Chạy trong thư mục dự án (thư mục mở Claude Code, chứa `.claude` 
 | `python .claude/skills/mention-monitor/scripts/status.py progress --run <RUN> --init full` (hoặc `update`) | tạo tiến độ; đã có thì chỉ đọc, không ghi đè |
 | `python .claude/skills/mention-monitor/scripts/status.py progress --run <RUN> --add-tasks <file.json>` | thêm task (task trùng bị bỏ qua) |
 | `python .claude/skills/mention-monitor/scripts/status.py progress --run <RUN> --set T001=done:LOG-000001` | cập nhật task: `done` / `blocked` / `pending`; thêm `--note "..."` khi `blocked` |
-| `python .claude/skills/mention-monitor/scripts/status.py recheck-due --run <RUN>` | bài cần kiểm tra lại (gồm bài từ file cũ chưa có ảnh) |
+| `python .claude/skills/mention-monitor/scripts/status.py recheck-due --run <RUN>` | bài cần kiểm tra lại |
 | `python .claude/skills/mention-monitor/scripts/add_record.py check --url <url>` / `--text "<đoạn chữ>"` | đã có trong kho chưa |
 | `python .claude/skills/mention-monitor/scripts/add_record.py add --run <RUN> --json <file.json>` | ghi bản ghi (1 object hoặc mảng) |
 | `python .claude/skills/mention-monitor/scripts/export_site.py` | xuất dữ liệu cho **web xem kết quả** (`output/site/data.json`) — đầu ra chính |
 | `cd web && npm run start` (lần đầu / sau khi sửa code web: `npm install && npm run build`) | mở web tại http://127.0.0.1:3000 (chỉ máy này truy cập được) |
 | `python .claude/skills/mention-monitor/scripts/build_excel.py` | (tuỳ chọn, chạy tay) file Excel khi cần nộp file cho Thừa phát lại/luật sư |
 | `python .claude/skills/mention-monitor/scripts/status.py report --run <RUN>` | viết `runs/<RUN>/report.md` |
-| `python .claude/skills/mention-monitor/scripts/import_legacy.py --file <xlsx>` | nhập file Excel cũ (chỉ lần đầu; chạy lại không nhân đôi) |
 
 **Ghi JSON bản ghi** bằng công cụ Write vào `runs/<RUN>/pending/<tên>.json`, rồi gọi `add`. Không dùng `echo`/heredoc (dễ vỡ tiếng Việt). Đường dẫn tương đối của `--json`/`--add-tasks` tính theo thư mục đang đứng; `evidence[].file` và `snapshot_file` tương đối thì tính theo thư mục dự án — dùng đường dẫn tuyệt đối (như `save_to_disk` trả về) khi chạy với `--project` ở nơi khác. Trường và giá trị hợp lệ: `references/schema.md`. Cách phân loại: `references/classification.md`.
 
@@ -50,7 +49,6 @@ Kết quả `add` — mỗi phần tử:
 ## Quy trình một lần chạy
 
 1. **Chuẩn bị.** Đặt `RUN = RUN-<YYYY-MM-DD>-<NN>` (NN = 01, tăng nếu trong ngày đã có thư mục `runs/RUN-<ngày>-01`). Chạy `stats`. Chạy `progress --run RUN --init full` (lần đầu quét) hoặc `update` (các lần sau). Nếu progress trả về task `pending` → đây là lần chạy dở, làm tiếp các task đó, không lập lại danh sách.
-   - Kho chưa có bản ghi `origin=legacy` và thư mục `legacy/` trống → hỏi người dùng đường dẫn file Excel cũ, chạy `import_legacy.py`.
 2. **Lập danh sách task** theo facebook.md (mục Ma trận tìm kiếm) → `--add-tasks`.
 3. **Làm từng task** theo facebook.md. Mỗi lần tìm kiếm = 1 bản ghi `search_log`. Xong task → `--set Txxx=done:LOG-...`. Bị chặn → `--set Txxx=blocked --note "<lý do>"` rồi dừng.
 4. **Sau mỗi lô** (1 nhóm/trang, hoặc khoảng 10 task tìm kiếm): `export_site.py` — người dùng tải lại web là thấy tiến độ.

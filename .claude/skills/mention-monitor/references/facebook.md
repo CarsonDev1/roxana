@@ -1,6 +1,6 @@
 # Quét Facebook
 
-## Công cụ trình duyệt — đã chạy thử thật ngày 30/09/2026 (bài #6, #4 của file cũ)
+## Công cụ trình duyệt — đã chạy thử thật ngày 30/09/2026
 
 **Cách A — Playwright điều khiển một Chrome riêng trên máy này (đã kiểm chứng, dùng mặc định):**
 1. `powershell -File .claude/skills/mention-monitor/scripts/browser/start_chrome.ps1` — mở Chrome với profile riêng `%LOCALAPPDATA%\RoxanaMonitor\chrome-profile` (ngoài repo, không vào git) và cổng điều khiển `127.0.0.1:9222`. Kiểm tra: `curl -s http://127.0.0.1:9222/json/version`.
@@ -47,7 +47,7 @@ Với mỗi container trong `config.json → containers` (và mỗi container m�
 - `scan_mode=full` (nhóm/trang chuyên về vụ việc): `group_feed` — `https://www.facebook.com/groups/<id>/?sorting_setting=CHRONOLOGICAL`, hoặc `page_feed` với trang. Cuộn từ mới nhất tới bài cũ nhất, thu **mọi bài**.
 - `scan_mode=keyword` (nhóm chung): `in_group_search` — `https://www.facebook.com/groups/<id>/search/?q=<term>` cho mọi term.
 - `joined` khác `yes` và nhóm kín → không quét; đưa vào danh sách "cần xin vào".
-- `privacy` hoặc `joined` là `unknown` (vd nhóm nhập từ file cũ) → task đầu tiên của nhóm là mở trang nhóm, xác định công khai/kín và đã tham gia chưa, ghi `recheck` với `updates` (`privacy`, `joined`, `member_count`…); sau đó áp các quy tắc trên.
+- `privacy` hoặc `joined` là `unknown` → task đầu tiên của nhóm là mở trang nhóm, xác định công khai/kín và đã tham gia chưa, ghi `recheck` với `updates` (`privacy`, `joined`, `member_count`…); sau đó áp các quy tắc trên.
 
 File task cho `--add-tasks` (mảng):
 
@@ -74,7 +74,7 @@ File task cho `--add-tasks` (mảng):
 ## 3. Thu thập một bài
 
 1. **Link riêng:** bấm vào mốc thời gian của bài (hoặc đọc `href` của nó) để lấy permalink. Dạng hợp lệ: `/groups/<gid>/posts/<pid>/`, `/groups/<gid>/permalink/<pid>/`, `/<user>/posts/<pfbid…>`, `/permalink.php?story_fbid=…&id=…`, `/photo/?fbid=…&set=…`, `/reel/<id>`, `/watch/?v=<id>`, `/videos/<id>`. Link `/share/…` → mở, lấy URL sau khi chuyển hướng. Không lấy được → `url_kind: "container_only"`, `url` = link nhóm. `href` của mốc thời gian là `#` cho tới khi **rê chuột** lên nó — rê chuột trước rồi mới đọc `href` (tooltip hiện cùng lúc). Link ảnh `/photo/?fbid=…&set=pcb.<pid>` hoặc `set=gm.<pid>` chỉ là **một ảnh trong bài**: bình luận nằm ở bài — mở link "Xem bài viết" ở khung bên phải (`/groups/<gid>/permalink/<pid>/`) và thu thập ở đó; link ảnh ghi vào `attachments[].url`.
-2. `check --url <permalink>` lần nữa. Có bản `origin=legacy` cùng nội dung (thử `check --text "<vài từ đầu>"`) → đặt `supersedes`.
+2. `check --url <permalink>` lần nữa — đã có thì không ghi lại.
 3. **Thời gian chính xác:** rê chuột (`computer` `hover`) lên mốc thời gian, đọc tooltip → `posted_at` + `posted_at_precision: "exact"`. `posted_at_raw` luôn là chữ hiện trên bài (vd "22 tháng 8 lúc 09:15", "3 ngày"), không phải chữ trong tooltip. Không có tooltip → quy đổi thời gian tương đối theo giờ thu thập (`captured_at`, tức lúc đang xem trang) → `relative_estimate`.
 4. Bấm mọi "Xem thêm" trong thân bài.
 5. **Chụp thân bài** (`save_to_disk: true`); bài dài hơn một màn hình → cuộn và chụp tiếp, mỗi ảnh một evidence `post`.
@@ -121,5 +121,4 @@ File task cho `--add-tasks` (mảng):
    - Nội dung khác bản trong kho → `recheck` `edited` + `new_text` + ảnh mới + `snapshot_text`.
    - Còn nguyên → `recheck` `active` + `metrics` mới.
    - Mở lại bình luận (mục 4): ảnh cuộn mới đi kèm `recheck` của bài; rồi `add` lại **cả cây bình luận** đang hiển thị trong một mảng (như lần đầu, `scroll_refs` trỏ vào `evidence_paths` của recheck đó) — bình luận đã có trả `duplicate` (không sao), bình luận mới được ghi. **Không** gửi riêng các bình luận mới: nhiều bình luận giống hệt nhau (vd "+1" cùng người) chỉ phân biệt được khi gửi cả cây; bình luận cũ không còn → `recheck` `deleted` cho bình luận đó.
-   - Bài từ file cũ (`reason` có "file cũ"): thu thập đầy đủ như bài mới (mục 3–4) với `supersedes` = mã bài cũ.
 4. Container `joined` khác `yes`: mở lại xem đã được duyệt chưa; đã vào → `recheck` với `updates.joined = "yes"` và thêm task quét.

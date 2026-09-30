@@ -30,7 +30,7 @@ def test_recheck_due_policy(project, make_png):
     add_records(project, [_src(make_png, 5, "cao", "2026-10-11T10:00:00+07:00")], "RUN-2026-10-11-01", cfg)
     due = recheck_due(load_view(project), cfg, "RUN-2026-10-11-01", now=datetime(2026, 10, 11, 12, 0, tzinfo=TZ))
     assert [d["id"] for d in due] == ["FB-P00001", "FB-P00005", "FB-P00003"]
-    assert "file cũ" in due[1]["reason"]
+    assert "Chưa có ảnh" in due[1]["reason"]
 
 
 def test_stats(project, make_png):

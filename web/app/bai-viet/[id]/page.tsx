@@ -18,7 +18,7 @@ export default async function SourcePage({ params }: PageProps<"/bai-viet/[id]">
   if (!data) return <NoData />;
   const s = data.sources.find((x) => x.id === id);
   if (!s) {
-    const replacement = data.sources.find((x) => x.supersedes === id); // bản từ file cũ đã được bản quét thay thế
+    const replacement = data.sources.find((x) => x.supersedes === id);
     if (replacement) redirect(`/bai-viet/${replacement.id}`);
     notFound();
   }
@@ -50,8 +50,6 @@ export default async function SourcePage({ params }: PageProps<"/bai-viet/[id]">
           <ToneBadge value={s.tone} label={L("tone", s.tone)} />
           {s.claim_type && <Badge tone="neutral">{L("claim_type", s.claim_type)}</Badge>}
           <StatusBadge value={s.status} label={L("recheck_status", s.status)} />
-          {s.origin === "legacy" && <Badge tone="muted">Từ file cũ — chưa có ảnh</Badge>}
-          {s.supersedes && <Badge tone="neutral">Thay cho {s.supersedes} (bản từ file cũ)</Badge>}
         </div>
       </header>
 
@@ -92,7 +90,7 @@ export default async function SourcePage({ params }: PageProps<"/bai-viet/[id]">
 
           <Card>
             <SectionTitle>Ảnh bằng chứng</SectionTitle>
-            {s.captures.length === 0 ? <p className="text-sm text-muted">Chưa có ảnh chụp (mục nhập từ file cũ).</p> : (
+            {s.captures.length === 0 ? <p className="text-sm text-muted">Chưa có ảnh chụp.</p> : (
               <div className="space-y-5">
                 {/* Chỉ hiện lần chụp mới nhất: lần trước có thể là ảnh toàn màn hình (dính thông tin tài khoản quét)
                     — vẫn giữ trong kho làm bằng chứng nhưng không hiển thị. */}
@@ -144,7 +142,6 @@ export default async function SourcePage({ params }: PageProps<"/bai-viet/[id]">
               ["Độ chính xác", L("posted_at_precision", s.posted_at_precision)],
               ["Thu thập lúc", fmtTime(s.captured_at)],
               ["Lần quét", s.run_id],
-              ["Nguồn dữ liệu", L("origin", s.origin)],
               ["Kiểm tra lần cuối", fmtTime(s.last_checked_at)],
               ["Bản chữ gốc", s.snapshot_file ? <a key="snap" className="text-accent-ink hover:underline" href={fileUrl(s.snapshot_file)!} target="_blank" rel="noopener">Mở bản chữ</a> : null],
             ]} />

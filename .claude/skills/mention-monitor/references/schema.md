@@ -56,7 +56,6 @@ Bắt buộc: `record_type`, `platform`, `content_type`, `url`, `url_kind`, `aut
 
 - `shared_from`: `{"url", "author_name", "author_url", "text_excerpt"}` khi là bài chia sẻ.
 - `keywords_matched`: id trong `config.json → keyword_groups`. `entities_mentioned`: id trong `key_parties`.
-- `supersedes`: mã bài `origin=legacy` mà bản quét này thay thế (tìm bằng `check --text`). Nếu URL trùng, script tự đặt.
 
 ## `comment`
 

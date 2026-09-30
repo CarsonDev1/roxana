@@ -53,7 +53,7 @@ describe("filterSources", () => {
   const list = [
     src({ id: "A", search: "de cho 4 5 dua lien", tone: "gay_gat", importance: "cao", entities_mentioned: ["lien"],
           posted_at: "2026-08-22T13:37:00+07:00" }),
-    src({ id: "B", search: "noi hoi tu tinh hoa", platform: "web", origin: "legacy", posted_at: "2024-12-02T12:22:00+07:00" }),
+    src({ id: "B", search: "noi hoi tu tinh hoa", platform: "web", posted_at: "2024-12-02T12:22:00+07:00" }),
     src({ id: "C", search: "khong ro ngay", posted_at: null, topics: ["toa_an"] }),
   ];
   it("searches accent-insensitively", () => {
@@ -65,7 +65,6 @@ describe("filterSources", () => {
     expect(filterSources(list, { platform: "web" }).map((s) => s.id)).toEqual(["B"]);
     expect(filterSources(list, { party: "lien" }).map((s) => s.id)).toEqual(["A"]);
     expect(filterSources(list, { topic: "toa_an" }).map((s) => s.id)).toEqual(["C"]);
-    expect(filterSources(list, { origin: "legacy" }).map((s) => s.id)).toEqual(["B"]);
   });
   it("sorts newest posted first, unknown dates last", () => {
     expect(filterSources(list, {}, "posted_desc").map((s) => s.id)).toEqual(["A", "B", "C"]);
