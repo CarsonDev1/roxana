@@ -60,6 +60,9 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
 ENUMS: dict[str, set[str]] = {name: set(values) for name, values in LABELS.items()}
 ENUMS["record_type"] = {"source", "comment", "container", "search_log", "recheck", "exclusion", "event"}
 
+EXCLUSION_FIELDS = {"record_type", "url", "excerpt", "keywords_matched", "reason", "search_log_id", "notes",
+                    "platform", "origin", "run_id", "captured_at", "id", "recorded_at", "dedupe_key"}
+
 CONTAINER_UPDATABLE = {"privacy", "joined", "scan_mode", "member_count", "member_count_at", "last_scanned_at",
                        "topic_dedicated", "notes", "name"}
 
@@ -133,6 +136,15 @@ def validate(rec: dict, config: dict | None = None) -> list[str]:
 
     if rec.get("text") is not None and not isinstance(rec["text"], str):
         errors.append("text phải là chuỗi")
+    shape = [f"{field} phải là danh sách"
+             for field in ("attachments", "evidence", "scroll_refs", "keywords_matched", "entities_mentioned", "topics")
+             if rec.get(field) is not None and not isinstance(rec[field], list)]
+    shape += [f"{field} phải là object" for field in ("metrics", "shared_from", "filters", "updates")
+              if rec.get(field) is not None and not isinstance(rec[field], dict)]
+    if isinstance(rec.get("attachments"), list) and any(not isinstance(a, dict) for a in rec["attachments"]):
+        shape.append("attachments[] phải là object {kind, description, transcribed_text, url}")
+    if shape:
+        return errors + shape
 
     evidence = rec.get("evidence")
     if evidence is not None:
@@ -140,6 +152,9 @@ def validate(rec: dict, config: dict | None = None) -> list[str]:
             errors.append("evidence phải là danh sách")
         else:
             for i, item in enumerate(evidence):
+                if not isinstance(item, dict):
+                    errors.append(f"evidence[{i}] phải là object {{file, kind, shows}}")
+                    continue
                 if not item.get("file"):
                     errors.append(f"evidence[{i}] thiếu file")
                 if item.get("kind") not in ENUMS["evidence_kind"]:
@@ -167,7 +182,7 @@ def validate(rec: dict, config: dict | None = None) -> list[str]:
                 errors.append("scroll_refs phải có ít nhất 1 ảnh cuộn")
             else:
                 for i, ref in enumerate(refs):
-                    if not ref.get("file") or not isinstance(ref.get("position"), int) or ref["position"] < 1:
+                    if not isinstance(ref, dict) or not ref.get("file") or not isinstance(ref.get("position"), int) or ref["position"] < 1:
                         errors.append(f"scroll_refs[{i}] cần file và position (số nguyên ≥ 1)")
         if rec.get("importance") == "cao":
             if not rec.get("evidence"):
@@ -190,5 +205,9 @@ def validate(rec: dict, config: dict | None = None) -> list[str]:
             errors.append("excerpt tối đa 100 ký tự")
         if {"author_name", "author_url"} & rec.keys():
             errors.append("exclusion không được ghi tên người đăng (author_name/author_url)")
+        extra = set(rec) - EXCLUSION_FIELDS
+        if extra:
+            errors.append(f"exclusion chỉ được có {', '.join(sorted(EXCLUSION_FIELDS))} — không ghi ảnh, "
+                          f"bản chữ hay thông tin người đăng; bỏ: {', '.join(sorted(extra))}")
 
     return errors

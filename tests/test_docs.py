@@ -48,3 +48,9 @@ def test_facebook_doc_has_key_rules():
 def test_docs_do_not_hardcode_project_path():
     for rel in ("SKILL.md", "references/schema.md", "references/classification.md", "references/facebook.md"):
         assert "D:\Roxana" not in _read(rel), rel
+
+
+def test_update_mode_readds_whole_comment_tree():
+    # Khoá trùng "#n" của bình luận giống hệt nhau chỉ đếm trong một lần add — gửi riêng bình luận mới sẽ mất "+1" lặp.
+    update = _read("references/facebook.md").split("## 6.")[1]
+    assert "cả cây bình luận" in update and "duplicate" in update

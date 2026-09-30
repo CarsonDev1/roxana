@@ -18,7 +18,8 @@ from common import Project, now_iso, parse_iso, read_records, setup_stdout
 from schema import DESCRIPTIONS, LABELS, label
 from view import View, build_view, needs_join
 from xlsx_helpers import (BOLD, BORDER, SECTION_FILL, TITLE_FONT, YELLOW_FILL, Column, Formula, Img, Internal,
-                          Link, col_letter, countif, countif_literal, setup_print, write_cell, write_table)
+                          Link, col_letter, countif, countif_literal, setup_print, sheet_warnings, write_cell,
+                          write_table)
 
 S_OVERVIEW = "Tổng quan"
 S_TIMELINE = "Dòng thời gian"
@@ -657,6 +658,8 @@ def build(project: Project) -> dict:
     src_cols, cmt_cols, ctr_cols = write_data_sheets(wb, ctx)
     write_summary_sheets(wb, ctx, src_cols, cmt_cols, ctr_cols)
     wb.calculation.fullCalcOnLoad = True
+    for ws in wb.worksheets:
+        view.warnings.extend(sheet_warnings(ws))
 
     out = project.output_path(config)
     out.parent.mkdir(parents=True, exist_ok=True)

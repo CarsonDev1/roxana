@@ -14,13 +14,46 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
 
-from common import (IdAllocator, Project, append_records, dedupe_key, fold, normalize_url, now_iso,
-                    read_records, setup_stdout, sha256_file, today_str)
+from PIL import Image
+
+from common import (IdAllocator, Project, append_records, dedupe_key, fold, normalize_author_url, normalize_url,
+                    now_iso, read_records, setup_stdout, sha256_file, today_str)
 from schema import validate
+
+_LONE_SURROGATE = re.compile(r"[\ud800-\udfff]")
+
+
+def _scrub(value):
+    """Drop lone surrogates (they cannot be written as UTF-8 and would abort the whole batch)."""
+    if isinstance(value, str):
+        return _LONE_SURROGATE.sub("", value)
+    if isinstance(value, list):
+        return [_scrub(v) for v in value]
+    if isinstance(value, dict):
+        return {_scrub(k): _scrub(v) for k, v in value.items()}
+    return value
+
+
+def _is_image(path: Path) -> bool:
+    try:
+        with Image.open(path) as im:
+            im.verify()
+        return True
+    except Exception:  # PIL raises many types for truncated / non-image files
+        return False
+
+
+def _normalize_authors(rec: dict) -> None:
+    if isinstance(rec.get("author_url"), str) and rec["author_url"]:
+        rec["author_url"] = normalize_author_url(rec["author_url"])
+    shared = rec.get("shared_from")
+    if isinstance(shared, dict) and isinstance(shared.get("author_url"), str) and shared["author_url"]:
+        shared["author_url"] = normalize_author_url(shared["author_url"])
 
 
 def _key_index(records: list[dict]) -> dict[str, dict]:
@@ -80,6 +113,9 @@ def _check_references(project: Project, rec: dict, by_id: dict[str, dict],
     for item in rec.get("evidence") or []:
         if item.get("file") and not project.resolve(item["file"]).is_file():
             errors.append(f"Không tìm thấy file ảnh: {item['file']}")
+        elif item.get("file") and not _is_image(project.resolve(item["file"])):
+            errors.append(f"File không phải ảnh đọc được (rỗng, hỏng hoặc PDF…): {item['file']} — chụp lại; "
+                          "tài liệu PDF thì chụp màn hình trang đang mở")
     if rec.get("snapshot_file") and not project.resolve(rec["snapshot_file"]).is_file():
         errors.append(f"Không tìm thấy file bản chữ: {rec['snapshot_file']}")
     for field in ("container_id", "target_id", "parent_comment_id"):
@@ -153,12 +189,20 @@ def add_records(project: Project, incoming: list[dict], run_id: str, config: dic
     occurrences: dict[str, int] = {}
 
     for i, raw in enumerate(incoming):
-        rec = copy.deepcopy(raw)
+        if not isinstance(raw, dict):
+            results.append({"index": i, "status": "invalid", "errors": ["Mỗi phần tử phải là một object JSON {...}"]})
+            batch_ids.append(None)
+            continue
+        rec = _scrub(copy.deepcopy(raw))
         rec.setdefault("origin", "scan")
         rec.setdefault("run_id", run_id)
         errors = _resolve_batch_refs(rec, batch_ids)
         if not errors:
-            errors = validate(rec, config) + _check_references(project, rec, by_id, cscroll)
+            errors = validate(rec, config)
+        if not errors:
+            errors = _check_references(project, rec, by_id, cscroll)
+        if not errors:
+            _normalize_authors(rec)
         if errors:
             results.append({"index": i, "status": "invalid", "errors": errors})
             batch_ids.append(None)

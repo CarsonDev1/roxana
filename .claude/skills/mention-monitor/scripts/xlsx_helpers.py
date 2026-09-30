@@ -35,7 +35,30 @@ HIGHLIGHTS = {"Mức quan trọng": {"Cao": RED_FILL}, "Thái độ": {"Gay gắ
 MAX_CELL_CHARS = 32767
 MAX_THUMB_HEIGHT = 540  # px — giữ chiều cao hàng dưới giới hạn 409pt của Excel
 TRUNCATION_NOTE = " …[bị cắt do giới hạn 32.767 ký tự của ô Excel — xem bản chữ gốc]"
-_ILLEGAL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+MAX_HYPERLINKS = 65530  # giới hạn của Excel cho một sheet; vượt quá thì file không mở được
+BROKEN_IMAGE = "Ảnh gốc không đọc được — mở file gốc để kiểm tra"
+# Ký tự XML không cho phép: điều khiển C0, U+FFFE/U+FFFF, surrogate lẻ — Excel từ chối mở file chứa chúng.
+_ILLEGAL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿\ud800-\udfff]")
+
+
+def sheet_warnings(ws) -> list[str]:
+    out = []
+    dropped = getattr(ws, "_mm_links_dropped", 0)
+    if dropped:
+        out.append(f"Sheet {ws.title}: vượt giới hạn {MAX_HYPERLINKS:,} hyperlink của Excel — "
+                   f"{dropped} link cuối được ghi dạng chữ (không bấm được)".replace(",", "."))
+    out += [f"Sheet {ws.title}: ảnh không đọc được, không tạo được ảnh thu nhỏ: {p}"
+            for p in getattr(ws, "_mm_broken_images", [])]
+    return out
+
+
+def _take_link(ws) -> bool:
+    used = getattr(ws, "_mm_links", 0)
+    if used >= MAX_HYPERLINKS:
+        ws._mm_links_dropped = getattr(ws, "_mm_links_dropped", 0) + 1
+        return False
+    ws._mm_links = used + 1
+    return True
 
 
 @dataclass
@@ -82,11 +105,13 @@ def write_cell(ws, row: int, col: int, value) -> None:
     cell = ws.cell(row=row, column=col)
     cell.alignment = WRAP_TOP
     if isinstance(value, Formula):
-        cell.value = value.expr
+        cell.value = _ILLEGAL.sub("", value.expr)  # tiêu chí COUNTIF có thể chứa link/tên người dùng nhập
         cell.font = FONT
         return
-    if isinstance(value, Link):
-        cell.hyperlink = value.target
+    if isinstance(value, (Link, Internal)) and not _take_link(ws):
+        text, font = value.text, FONT
+    elif isinstance(value, Link):
+        cell.hyperlink = safe_text(value.target)
         text, font = value.text, LINK_FONT
     elif isinstance(value, Internal):
         cell.hyperlink = Hyperlink(ref=cell.coordinate, location=f"'{value.sheet}'!A{value.row}")
@@ -116,10 +141,14 @@ def make_thumbnail(src: Path, thumbs_dir: Path, width: int) -> Path:
 
 
 def add_thumbnail(ws, anchor: str, src: Path, thumbs_dir: Path, width: int) -> int:
-    """Embed a thumbnail at `anchor`; return its height in px (0 when the original is missing)."""
+    """Embed a thumbnail at `anchor`; return its height in px (0 when missing, -1 when unreadable)."""
     if not src.is_file():
         return 0
-    img = XLImage(str(make_thumbnail(src, thumbs_dir, width)))
+    try:
+        img = XLImage(str(make_thumbnail(src, thumbs_dir, width)))
+    except Exception:  # file rỗng / hỏng / không phải ảnh — không được làm hỏng cả lần dựng
+        ws._mm_broken_images = getattr(ws, "_mm_broken_images", []) + [str(src)]
+        return -1
     ws.add_image(img, anchor)
     return img.height
 
@@ -137,8 +166,10 @@ def write_table(ws, columns: list[Column], items: list[dict], thumbs_dir: Path,
         for c, col in enumerate(columns, 1):
             value = col.get(item)
             if isinstance(value, Img):
-                tallest = max(tallest, add_thumbnail(ws, f"{get_column_letter(c)}{r}", value.path, thumbs_dir,
-                                                     value.width))
+                height = add_thumbnail(ws, f"{get_column_letter(c)}{r}", value.path, thumbs_dir, value.width)
+                if height < 0:
+                    write_cell(ws, r, c, BROKEN_IMAGE)
+                tallest = max(tallest, height)
                 ws.cell(row=r, column=c).font = FONT
             else:
                 write_cell(ws, r, c, value)

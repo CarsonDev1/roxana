@@ -209,6 +209,16 @@ def normalize_url(url: str | None) -> str:
     return urlunsplit(("https", host, path, urlencode(sorted(params)), ""))
 
 
+def normalize_author_url(url: str) -> str:
+    """Stable profile link: Facebook adds per-page-load tokens (__cft__, __tn__) and comment ids to name links."""
+    parts = urlsplit(url.strip() if "://" in url else "https://" + url.strip())
+    if parts.netloc.lower() not in FB_HOSTS:
+        return url.strip()
+    clean = urlsplit(normalize_url(url))
+    params = [(k, v) for k, v in parse_qsl(clean.query) if k not in ("comment_id", "reply_comment_id")]
+    return urlunsplit((clean.scheme, clean.netloc, clean.path, urlencode(params), ""))
+
+
 def match_keywords(text: str, config: dict, context_text: str = "") -> tuple[list[str], list[str]]:
     """Return (matched group ids, group ids found but dropped for lack of a context term)."""
     folded = fold(text)

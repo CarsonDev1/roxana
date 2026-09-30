@@ -120,6 +120,6 @@ File task cho `--add-tasks` (mảng):
    - Không còn → `recheck` `deleted` + ảnh thông báo.
    - Nội dung khác bản trong kho → `recheck` `edited` + `new_text` + ảnh mới + `snapshot_text`.
    - Còn nguyên → `recheck` `active` + `metrics` mới.
-   - Mở lại bình luận (mục 4): ảnh cuộn mới đi kèm `recheck` của bài; bình luận mới → `add` với `scroll_refs` trỏ vào `evidence_paths` của recheck đó; bình luận cũ không còn → `recheck` `deleted` cho bình luận đó.
+   - Mở lại bình luận (mục 4): ảnh cuộn mới đi kèm `recheck` của bài; rồi `add` lại **cả cây bình luận** đang hiển thị trong một mảng (như lần đầu, `scroll_refs` trỏ vào `evidence_paths` của recheck đó) — bình luận đã có trả `duplicate` (không sao), bình luận mới được ghi. **Không** gửi riêng các bình luận mới: nhiều bình luận giống hệt nhau (vd "+1" cùng người) chỉ phân biệt được khi gửi cả cây; bình luận cũ không còn → `recheck` `deleted` cho bình luận đó.
    - Bài từ file cũ (`reason` có "file cũ"): thu thập đầy đủ như bài mới (mục 3–4) với `supersedes` = mã bài cũ.
 4. Container `joined` khác `yes`: mở lại xem đã được duyệt chưa; đã vào → `recheck` với `updates.joined = "yes"` và thêm task quét.
