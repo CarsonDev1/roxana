@@ -126,7 +126,7 @@ def load_comments(page, limit: int) -> dict:
         for i in range(page.locator("ytd-comment-thread-renderer").count()):
             has = page.evaluate(r"""(i) => {
               const th = document.querySelectorAll('ytd-comment-thread-renderer')[i];
-              if (!th || !th.querySelector('#more-replies, #more-replies-sub-thread, ytd-continuation-item-renderer')) return false;
+              if (!th || th.dataset.mmDone || !th.querySelector('#more-replies, #more-replies-sub-thread, ytd-continuation-item-renderer')) return false;
               th.scrollIntoView({block: 'center'});
               return true;
             }""", i)
@@ -142,6 +142,7 @@ def load_comments(page, limit: int) -> dict:
                        && !b.dataset.mmClicked;
               });
               btns.forEach(b => { b.dataset.mmClicked = '1'; b.click(); });
+              if (!btns.length) th.dataset.mmDone = '1';  // hết nút "phản hồi" → lượt sau bỏ qua bình luận này
               return btns.length;
             }""", i)
             if k:
