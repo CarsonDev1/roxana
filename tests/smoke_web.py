@@ -49,9 +49,12 @@ def main(argv=None) -> int:
         if with_images:  # bấm ảnh → khung xem ngay trên trang, không mở tab mới; Esc đóng
             page.goto(f"{args.base}/bai-viet/{with_images[0]}", wait_until="networkidle")
             tabs = len(browser.contexts[0].pages) if browser.contexts else 1
-            page.get_by_role("button", name="Xem ảnh lớn").first.click()
+            btn = page.get_by_role("button", name="Xem ảnh lớn").first
+            btn.focus(); page.keyboard.press("Enter")
             dialog = page.locator("dialog[open]")
-            ok = dialog.count() == 1 and dialog.locator("img").evaluate("i => i.complete && i.naturalWidth > 0")
+            ok = dialog.count() == 1
+            if ok:  # ảnh gốc có thể dài hàng nghìn px — chờ tải xong
+                page.wait_for_function("() => { const i = document.querySelector('dialog[open] img'); return i && i.complete && i.naturalWidth > 0; }", timeout=30000)
             page.keyboard.press("Escape")
             if not ok or page.locator("dialog[open]").count() or len(browser.contexts[0].pages) != tabs:
                 failures.append({"path": "image viewer", "error": "khung xem ảnh không mở/đóng đúng"})
