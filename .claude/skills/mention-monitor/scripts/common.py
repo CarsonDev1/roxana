@@ -288,4 +288,10 @@ def dedupe_key(rec: dict) -> str | None:
         return "ctr:" + normalize_url(rec.get("url"))
     if kind == "event":
         return "evt:" + short_hash(norm_text(rec.get("date_raw")), norm_text(rec.get("description"))[:200])
+    if kind == "search_log":  # cùng một lượt tìm (nền tảng, mục, từ khoá, bộ lọc, nhóm, giờ bắt đầu) chỉ ghi một lần
+        return "log:" + short_hash(rec.get("platform") or "", rec.get("section") or "", norm_text(rec.get("query")),
+                                   json.dumps(rec.get("filters") or {}, sort_keys=True), rec.get("container_id") or "",
+                                   rec.get("started_at") or "")
+    if kind == "exclusion":
+        return "exc:" + normalize_url(rec.get("url"))
     return None

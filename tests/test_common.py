@@ -130,8 +130,8 @@ def test_dedupe_key_comment_ignores_relative_time():
     assert dedupe_key(dict(a, fb_comment_id="123")) == "fbc:123"
 
 
-def test_dedupe_key_none_for_logs():
-    assert dedupe_key({"record_type": "search_log"}) is None
+def test_dedupe_key_none_for_rechecks():
+    assert dedupe_key({"record_type": "recheck"}) is None
 
 
 def test_project_resolve_and_rel(project):
@@ -174,3 +174,12 @@ def test_terms_match_whole_words():
     assert match_keywords("Naviland", WEAK_CFG)[0] == ["naviland"]
     assert match_keywords("Navilandia", WEAK_CFG)[0] == []
     assert match_keywords("#Naviland.", WEAK_CFG)[0] == ["naviland"]
+
+
+def test_search_log_and_exclusion_dedupe_keys():
+    log = {"record_type": "search_log", "platform": "web", "section": "news", "query": "Roxana Plaza",
+           "started_at": "2026-09-30T11:49:06+07:00"}
+    assert dedupe_key(log) == dedupe_key(dict(log)) != dedupe_key(dict(log, started_at="2026-09-30T11:50:00+07:00"))
+    assert dedupe_key(dict(log, filters={"year": 2021})) != dedupe_key(log)
+    exc = {"record_type": "exclusion", "url": "https://Example.com/a?utm_source=x"}
+    assert dedupe_key(exc) == dedupe_key({"record_type": "exclusion", "url": "https://example.com/a"})
