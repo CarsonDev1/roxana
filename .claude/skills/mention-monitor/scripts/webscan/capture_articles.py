@@ -51,12 +51,16 @@ EXTRACT = r"""
   let body = document.body, best = 0;
   for (const [el, s] of score) if (s > best && el !== document.body) { best = s; body = el; }
   // Khung thân bài quen thuộc của báo Việt được ưu tiên hơn điểm (cột "Tin mới" nhiều đoạn mô tả có thể điểm cao hơn)
-  const KNOWN = '[itemprop="articleBody"], .edittor-content, .fck_detail, .the-article-body, .detail-content, .detail__content, ' +
-                '.article-content, .article__body, .content-detail, .singular-content, .detail-cmain, #main-detail-body, ' +
-                '.entry-content, .post-content, .cms-body, .article-body, .news-content, .content-news, .detail-content-body';
-  const known = [...document.querySelectorAll(KNOWN)].filter(el => !outside(el))
-    .map(el => ({el, n: [...el.querySelectorAll('p')].reduce((s, p) => s + p.innerText.trim().length, 0) || el.innerText.trim().length}))
-    .filter(x => x.n > 400).sort((a, b) => b.n - a.n);
+  // Chỉ nhận khung khi: lớp đó không lặp nhiều lần trên trang (nhiều trang dùng .article-content cho từng ô tin ở danh sách)
+  // và khung không ngắn hơn hẳn khối chấm điểm (nếu không, đó là một ô tin chứ không phải thân bài)
+  const KNOWN = ['[itemprop="articleBody"]', '.edittor-content', '.fck_detail', '.the-article-body', '.detail-content', '.detail__content',
+                 '.article-content', '.article__body', '.content-detail', '.singular-content', '.detail-cmain', '#main-detail-body',
+                 '.entry-content', '.post-content', '.cms-body', '.article-body', '.news-content', '.content-news', '.detail-content-body'];
+  const pText = (el) => [...el.querySelectorAll('p')].reduce((s, p) => s + p.innerText.trim().length, 0) || el.innerText.trim().length;
+  const bestN = body === document.body ? 0 : pText(body);
+  const known = KNOWN.flatMap(sel => { const els = [...document.querySelectorAll(sel)]; return els.length <= 2 ? els : []; })
+    .filter(el => !outside(el)).map(el => ({el, n: pText(el)}))
+    .filter(x => x.n > 400 && (x.n >= bestN * 0.5 || x.el.contains(body) || body.contains(x.el))).sort((a, b) => b.n - a.n);
   if (known.length) body = known[0].el;
   const h1s = [...document.querySelectorAll('h1')].filter(h => h.getClientRects().length);
   const br = body.getBoundingClientRect();
@@ -77,8 +81,17 @@ EXTRACT = r"""
   // Danh sách tin khác ở cuối thân bài ("Có thể bạn quan tâm"…): cắt vùng chụp và nguyên văn tại tiêu đề đó
   // chỉ các tiêu đề chắc chắn là danh sách cuối bài; "Tin liên quan"/"Đọc thêm" hay nằm GIỮA bài (Dân trí…) → không cắt
   const TAIL = /^(Có thể bạn quan tâm|Tin cùng chuyên mục|Bài viết liên quan|Xem thêm các tin|Tin khác|Tin mới nhất)\s*:?$/i;
-  const tail = [...body.querySelectorAll('h2, h3, h4, div, span, strong, p')].find(e => e.childElementCount <= 1
-      && TAIL.test((e.innerText || '').trim()) && e.getBoundingClientRect().top > r2.top + r2.height * 0.3);
+  // "Đọc thêm"/"Xem thêm"/"Tin liên quan"… có thể nằm giữa bài: chỉ cắt khi sau đó chỉ còn các dòng ngắn kiểu tiêu đề tin
+  const SOFT = /^(Đọc thêm|Xem thêm|Xem nhiều|Đọc nhiều|Tin liên quan|Tin nổi bật|Tin tài trợ|Tin cùng chủ đề|Cùng chuyên mục)\s*:?$/i;
+  const onlyHeadlinesAfter = (label) => {
+    const i = bodyText.indexOf(label, Math.floor(bodyText.length * 0.3));
+    return i > 0 && bodyText.slice(i + label.length).split('\n').every(l => l.trim().length <= 200);
+  };
+  const tail = [...body.querySelectorAll('h2, h3, h4, div, span, strong, p, a')].find(e => {
+    const t = (e.innerText || '').trim();
+    return e.childElementCount <= 1 && e.getBoundingClientRect().top > r2.top + r2.height * 0.3
+      && (TAIL.test(t) || (SOFT.test(t) && onlyHeadlinesAfter(t)));
+  });
   const cutAt = tail ? tail.getBoundingClientRect().top : null;
   let cleanText = bodyText;
   if (tail) { const i = bodyText.indexOf(tail.innerText.trim(), Math.floor(bodyText.length * 0.3)); if (i > 0) cleanText = bodyText.slice(0, i).trim(); }
