@@ -3,20 +3,254 @@
   "output_file": "Roxana_Tong_hop.xlsx",
   "timezone": "+07:00",
   "keyword_groups": [
-    {"id": "roxana", "label": "Roxana Plaza",
-     "terms": ["Roxana Plaza", "Roxana", "Roxanna", "Roxanna Plaza", "Roxana Plaza Bình Dương", "#roxanaplaza"]},
-    {"id": "tuongphong", "label": "CĐT Tường Phong",
-     "terms": ["Tường Phong", "Công ty Tường Phong", "CĐT Tường Phong"]},
-    {"id": "lien", "label": "Bà Phạm Thị Ngọc Liên",
-     "terms": ["Phạm Thị Ngọc Liên", "Phạm Ngọc Liên", "bà Ngọc Liên"], "requires_context": true},
-    {"id": "naviland", "label": "Naviland", "terms": ["Naviland", "Navi Land", "Nvl Roxana"]},
-    {"id": "launamtuong", "label": "Ông Lầu Nam Tường", "terms": ["Lầu Nam Tường"], "requires_context": true},
-    {"id": "tuyen", "label": "Bà Dương Thị Phương Tuyền",
-     "terms": ["Dương Thị Phương Tuyền", "Phương Tuyền"], "requires_context": true},
-    {"id": "viethome", "label": "Viethome", "terms": ["Viethome", "Viet Home Roxana"], "requires_context": true}
+    {
+      "id": "roxana",
+      "label": "Roxana Plaza",
+      "terms": [
+        "Roxana Plaza",
+        "Roxana",
+        "Roxanna",
+        "Roxanna Plaza",
+        "Roxana Plaza Bình Dương",
+        "#roxanaplaza"
+      ]
+    },
+    {
+      "id": "tuongphong",
+      "label": "CĐT Tường Phong",
+      "terms": [
+        "Tường Phong",
+        "Công ty Tường Phong",
+        "CĐT Tường Phong"
+      ]
+    },
+    {
+      "id": "lien",
+      "label": "Bà Phạm Thị Ngọc Liên",
+      "terms": [
+        "Phạm Thị Ngọc Liên",
+        "Phạm Ngọc Liên",
+        "bà Ngọc Liên"
+      ],
+      "requires_context": true
+    },
+    {
+      "id": "naviland",
+      "label": "Naviland",
+      "terms": [
+        "Naviland",
+        "Navi Land",
+        "Nvl Roxana"
+      ]
+    },
+    {
+      "id": "launamtuong",
+      "label": "Ông Lầu Nam Tường",
+      "terms": [
+        "Lầu Nam Tường"
+      ],
+      "requires_context": true
+    },
+    {
+      "id": "tuyen",
+      "label": "Bà Dương Thị Phương Tuyền",
+      "terms": [
+        "Dương Thị Phương Tuyền",
+        "Phương Tuyền"
+      ],
+      "requires_context": true
+    },
+    {
+      "id": "viethome",
+      "label": "Viethome",
+      "terms": [
+        "Viethome",
+        "Viet Home Roxana"
+      ],
+      "requires_context": true
+    }
   ],
-  "context_terms": ["Roxana", "Tường Phong", "Naviland", "Viethome", "Bình Hoà", "Thuận An", "đòi nhà"],
-  "key_parties": [],
-  "containers": [],
-  "recheck_policy_days": {"cao": 0, "trung_binh": 30, "thap": 90}
+  "context_terms": [
+    "Roxana",
+    "Tường Phong",
+    "Naviland",
+    "Viethome",
+    "Bình Hoà",
+    "Thuận An",
+    "đòi nhà"
+  ],
+  "key_parties": [
+    {
+      "id": "tuongphong",
+      "name": "Công ty TNHH XD-DV-TM-Đầu tư BĐS Tường Phong",
+      "label": "Tường Phong",
+      "kind": "Doanh nghiệp",
+      "role": "Chủ đầu tư chính thức, hợp pháp của dự án Roxana Plaza. Bị thanh tra tỉnh phạt 275 triệu đồng vì chậm tiến độ. Bị khách hàng cáo buộc thay đổi phát ngôn, yêu cầu ký lại hợp đồng giá cao hơn.",
+      "press_sources": "CafeF, Dân Việt, Doanh nghiệp Hội nhập",
+      "keyword_group": "tuongphong",
+      "primary": true,
+      "legacy": true
+    },
+    {
+      "id": "naviland",
+      "name": "Công ty CP Naviland",
+      "label": "Naviland",
+      "kind": "Doanh nghiệp",
+      "role": "Đơn vị đã bán 1.082 căn hộ khi dự án chưa đủ điều kiện huy động vốn (\"bán chui\"). Bị phạt 275 triệu đồng + đình chỉ kinh doanh BĐS (chưa nộp phạt). Bị Toà án tuyên vô hiệu ít nhất 1 hợp đồng, buộc hoàn tiền khách hàng.",
+      "press_sources": "CafeF/NLD, CAND, bài đăng Ls. Trần Minh Cường",
+      "keyword_group": "naviland",
+      "primary": true,
+      "legacy": true
+    },
+    {
+      "id": "viethome",
+      "name": "Công ty CP Đầu tư Viethome",
+      "label": "Viethome",
+      "kind": "Doanh nghiệp",
+      "role": "Được bà Dương Thị Phương Tuyền ký hợp đồng phân phối độc quyền (do chồng bà làm chủ) — thanh tra xác định việc ký này trái quy định pháp luật.",
+      "press_sources": "CAND",
+      "keyword_group": "viethome",
+      "primary": true,
+      "legacy": true
+    },
+    {
+      "id": "launamtuong",
+      "name": "Ông Lầu Nam Tường",
+      "label": "Ông Lầu Nam Tường",
+      "kind": "Cá nhân",
+      "role": "Chủ tịch Công ty Tường Phong; chồng bà Phạm Thị Ngọc Liên. Hồ sơ cho thấy ông đã trực tiếp ký nháy từng trang mẫu hợp đồng bán hàng gốc.",
+      "press_sources": "Doanh nghiệp Hội nhập — Bài 3, Bài 4",
+      "keyword_group": "launamtuong",
+      "primary": true,
+      "legacy": true
+    },
+    {
+      "id": "lien",
+      "name": "Bà Phạm Thị Ngọc Liên",
+      "label": "Bà Phạm Thị Ngọc Liên",
+      "kind": "Cá nhân",
+      "role": "Vợ ông Lầu Nam Tường. Được uỷ quyền đại diện 10% cổ phần Naviland; được bầu làm Tổng Giám đốc Naviland ngày 22/1/2021 (thay bà Dương Thị Phương Tuyền). Bị cư dân giăng băng rôn yêu cầu \"trả nhà\" tại các cuộc tuần hành.",
+      "press_sources": "Doanh nghiệp Hội nhập — Bài 3; Dân Việt",
+      "keyword_group": "lien",
+      "primary": true,
+      "legacy": true
+    },
+    {
+      "id": "tuyen",
+      "name": "Bà Dương Thị Phương Tuyền",
+      "label": "Bà Dương Thị Phương Tuyền",
+      "kind": "Cá nhân",
+      "role": "Nguyên Giám đốc Naviland trước 2021. Người tự ký hợp đồng phân phối độc quyền với Viethome (công ty của chồng bà) khi chưa được nhóm cổ đông đa số đồng ý. Bị nêu tên trong băng rôn phản đối của cư dân.",
+      "press_sources": "CAND; Dân Việt",
+      "keyword_group": "tuyen",
+      "primary": true,
+      "legacy": true
+    },
+    {
+      "id": "ong-hoang-tung",
+      "name": "Ông Hoàng Tùng",
+      "label": "Ông Hoàng Tùng",
+      "kind": "Cá nhân",
+      "role": "Được báo Dân Việt nêu tên cùng nhóm liên quan đến công ty phát triển dự án (Naviland), bị cư dân nêu tên trong băng rôn phản đối.",
+      "press_sources": "Dân Việt",
+      "keyword_group": null,
+      "primary": false,
+      "legacy": true
+    },
+    {
+      "id": "ong-nguyen-anh-dao",
+      "name": "Ông Nguyễn Anh Đào",
+      "label": "Ông Nguyễn Anh Đào",
+      "kind": "Cá nhân",
+      "role": "Cổ đông lớn của Naviland, đã khởi kiện Phòng Đăng ký Kinh doanh tỉnh Bình Dương ra toà, yêu cầu xem xét lại giấy chứng nhận đăng ký kinh doanh (liên quan đến việc phát hiện 4 tài liệu bị cho là giả mạo trong hồ sơ đăng ký lần 7).",
+      "press_sources": "Doanh nghiệp Hội nhập — Bài 3",
+      "keyword_group": null,
+      "primary": false,
+      "legacy": true
+    },
+    {
+      "id": "thanh-tra-tinh-binh-duong-so-xay-dung-ubnd-tinh",
+      "name": "Thanh tra tỉnh Bình Dương / Sở Xây dựng / UBND tỉnh",
+      "label": "Thanh tra tỉnh Bình Dương / Sở Xây dựng / UBND tỉnh",
+      "kind": "Cơ quan nhà nước",
+      "role": "Ra kết luận thanh tra (24/8/2023) xác định sai phạm của cả Naviland và Tường Phong; từng từ chối cấp giấy đủ điều kiện bán hàng cho chủ đầu tư do khiếu nại phức tạp.",
+      "press_sources": "CafeF/NLD, Báo Đầu tư",
+      "keyword_group": null,
+      "primary": false,
+      "legacy": true
+    },
+    {
+      "id": "cong-an-tinh-binh-duong",
+      "name": "Công an tỉnh Bình Dương",
+      "label": "Công an tỉnh Bình Dương",
+      "kind": "Cơ quan nhà nước",
+      "role": "Tiếp nhận tố giác tội phạm liên quan vụ hợp đồng mua căn hộ Roxana Plaza bị tuyên vô hiệu.",
+      "press_sources": "Kinh tế Đô thị",
+      "keyword_group": null,
+      "primary": false,
+      "legacy": true
+    },
+    {
+      "id": "toa-an-nhan-dan-khu-vuc-16-tp-hcm",
+      "name": "Toà án Nhân dân Khu vực 16 – TP.HCM",
+      "label": "Toà án Nhân dân Khu vực 16 – TP.HCM",
+      "kind": "Cơ quan nhà nước",
+      "role": "Thụ lý vụ án dân sự số 2026/TLST-DS, tuyên vô hiệu hợp đồng mua bán căn hộ giữa Naviland và khách hàng, buộc hoàn trả tiền.",
+      "press_sources": "Bài đăng Ls. Trần Minh Cường",
+      "keyword_group": null,
+      "primary": false,
+      "legacy": true
+    },
+    {
+      "id": "van-phong-chinh-phu-pho-thu-tuong-le-tien-chau",
+      "name": "Văn phòng Chính phủ / Phó Thủ tướng Lê Tiến Châu",
+      "label": "Văn phòng Chính phủ / Phó Thủ tướng Lê Tiến Châu",
+      "kind": "Cơ quan nhà nước",
+      "role": "Theo Thông báo 95/TB-VPCP (10/7/2026), chỉ đạo tổ chức đối thoại với đại diện cư dân để giải quyết khiếu nại, tố cáo tại dự án — buổi đối thoại dự kiến 22/8/2026.",
+      "press_sources": "Giấy mời lưu hành trong nhóm cư dân",
+      "keyword_group": null,
+      "primary": false,
+      "legacy": true
+    }
+  ],
+  "containers": [
+    {
+      "platform": "facebook",
+      "name": "ROXANA PLAZA - HÀNH TRÌNH ĐÒI NHÀ",
+      "url": "https://www.facebook.com/groups/427692059062534/",
+      "privacy": "unknown",
+      "joined": "unknown",
+      "scan_mode": "full"
+    },
+    {
+      "platform": "facebook",
+      "name": "CỘNG ĐỒNG CƯ DÂN ROXANA PLAZA",
+      "url": "https://www.facebook.com/groups/472914441060049/",
+      "privacy": "unknown",
+      "joined": "unknown",
+      "scan_mode": "full"
+    },
+    {
+      "platform": "facebook",
+      "name": "Hội cư dân ROXANA PLAZA",
+      "url": "https://www.facebook.com/groups/485837871898206/",
+      "privacy": "unknown",
+      "joined": "unknown",
+      "scan_mode": "full"
+    },
+    {
+      "platform": "facebook",
+      "name": "ROXANA - QUYẾT TÂM ĐÒI NHÀ",
+      "url": "https://www.facebook.com/groups/580590514758415/",
+      "privacy": "unknown",
+      "joined": "unknown",
+      "scan_mode": "full"
+    }
+  ],
+  "recheck_policy_days": {
+    "cao": 0,
+    "trung_binh": 30,
+    "thap": 90
+  },
+  "disclaimer": "LƯU Ý QUAN TRỌNG: Đây là tranh chấp dân sự/hành chính đang trong quá trình xử lý bởi cơ quan nhà nước và toà án. Các từ như \"lừa đảo\" trong tài liệu này (trừ khi trích dẫn nguyên văn báo chí) phản ánh CÁCH GỌI của cư dân/cộng đồng mạng, KHÔNG phải kết luận pháp lý đã có hiệu lực rằng cá nhân/tổ chức nào đó phạm tội hình sự \"Lừa đảo chiếm đoạt tài sản\". Đến thời điểm tổng hợp, kết luận thanh tra xác nhận sai phạm hành chính (bán chui, chậm tiến độ) và có tố giác/thụ lý tại toà, nhưng chưa có bản án hình sự nào được ghi nhận qua các nguồn tra cứu được."
 }
