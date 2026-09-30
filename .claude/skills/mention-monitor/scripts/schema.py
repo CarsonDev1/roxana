@@ -176,14 +176,15 @@ def validate(rec: dict, config: dict | None = None) -> list[str]:
             errors.append("depth phải là 1, 2 hoặc 3")
         elif depth > 1 and _missing(rec, "parent_comment_id"):
             errors.append("Trả lời (depth > 1) phải có parent_comment_id")
-        refs = rec.get("scroll_refs")
-        if refs is not None:
-            if not isinstance(refs, list) or not refs:
-                errors.append("scroll_refs phải có ít nhất 1 ảnh cuộn")
-            else:
-                for i, ref in enumerate(refs):
-                    if not isinstance(ref, dict) or not ref.get("file") or not isinstance(ref.get("position"), int) or ref["position"] < 1:
-                        errors.append(f"scroll_refs[{i}] cần file và position (số nguyên ≥ 1)")
+    refs = rec.get("scroll_refs")
+    if rtype in ("comment", "recheck") and refs is not None:  # recheck: trỏ bình luận sang ảnh cuộn chụp lại
+        if not isinstance(refs, list) or not refs:
+            errors.append("scroll_refs phải có ít nhất 1 ảnh cuộn")
+        else:
+            for i, ref in enumerate(refs):
+                if not isinstance(ref, dict) or not ref.get("file") or not isinstance(ref.get("position"), int) or ref["position"] < 1:
+                    errors.append(f"scroll_refs[{i}] cần file và position (số nguyên ≥ 1)")
+    if rtype == "comment":
         if rec.get("importance") == "cao":
             if not rec.get("evidence"):
                 errors.append("Bình luận mức cao phải có ảnh chụp riêng trong evidence")

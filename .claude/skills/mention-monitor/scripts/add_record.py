@@ -149,8 +149,12 @@ def _check_references(project: Project, rec: dict, by_id: dict[str, dict],
         ref = rec.get(field)
         if ref and ref not in by_id:
             errors.append(f"{field}={ref} không có trong kho")
-    if rec.get("record_type") == "comment":
-        sid = rec.get("source_id")
+    if rec.get("record_type") == "recheck" and rec.get("scroll_refs") is not None:
+        target = by_id.get(rec.get("target_id"), {})
+        if target.get("record_type") != "comment":
+            errors.append("scroll_refs trong recheck chỉ dùng cho bình luận (target_id là mã FB-C…)")
+    if rec.get("record_type") == "comment" or (rec.get("record_type") == "recheck" and rec.get("scroll_refs")):
+        sid = rec.get("source_id") or by_id.get(rec.get("target_id"), {}).get("source_id")
         if sid not in by_id:
             errors.append(f"source_id={sid} không có trong kho")
         else:

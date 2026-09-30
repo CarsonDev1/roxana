@@ -94,9 +94,11 @@ def url_link(url):
 
 
 def first_evidence(item: dict, kinds: tuple[str, ...]) -> dict | None:
-    for e in item.get("all_evidence") or []:
-        if e.get("kind") in kinds:
-            return e
+    """First matching image of the newest capture (a recheck that re-shot the post wins over the original)."""
+    for group in reversed(item.get("evidence_groups") or [item.get("all_evidence") or []]):
+        for e in group:
+            if e.get("kind") in kinds:
+                return e
     return None
 
 

@@ -63,6 +63,7 @@ def build_view(records: list[dict], warnings: list[str] | None = None) -> View:
         for rec in by_type.get(rtype, []):
             item = dict(rec)
             item.update(status="active", last_checked_at=None, all_evidence=list(rec.get("evidence") or []),
+                        evidence_groups=[list(rec.get("evidence") or [])],
                         current_metrics=_initial_metrics(rec))
             items[item["id"]] = item
 
@@ -83,6 +84,10 @@ def build_view(records: list[dict], warnings: list[str] | None = None) -> View:
             target["current_text"] = chk["new_text"]
         if chk.get("updates"):
             target.update(chk["updates"])
+        if chk.get("scroll_refs"):
+            target["scroll_refs"] = chk["scroll_refs"]
+        if chk.get("evidence"):
+            target["evidence_groups"].append(list(chk["evidence"]))
         grew = any(isinstance(v, (int, float)) and isinstance(before.get(k), (int, float)) and v > before[k]
                    for k, v in new_metrics.items())
         if chk.get("status") in ("edited", "deleted", "unavailable") or grew or chk.get("updates"):

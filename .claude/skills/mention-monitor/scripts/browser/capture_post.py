@@ -49,6 +49,55 @@ READ_COMMENTS = r"""
 """
 
 
+POST_AREA = r"""
+() => {
+  const d = [...document.querySelectorAll('[role="dialog"]')]
+    .filter(x => x.getClientRects().length && x.querySelector('div[role="article"], [role="textbox"], img')).pop();
+  if (!d) return {error: 'không thấy khung bài (dialog) — mở bài bằng permalink trước'};
+  const b = d.getBoundingClientRect();
+  const top = Math.max(0, b.top), left = Math.max(0, b.left);
+  let bottom = Math.min(b.bottom, innerHeight);
+  const composer = d.querySelector('[contenteditable="true"], [role="textbox"]');
+  // Chân khung bài = khối bao ô "Bình luận dưới tên <tài khoản>" + ảnh đại diện: leo lên tổ tiên còn thấp (< 160px).
+  let row = composer && (composer.closest('form') || composer);
+  while (row && row.parentElement && d.contains(row.parentElement)
+         && row.parentElement.getBoundingClientRect().height < 160) row = row.parentElement;
+  let account = null;
+  if (row) {
+    const r = row.getBoundingClientRect();
+    if (r.top > top + 80 && r.top < bottom) bottom = r.top - 2;  // cắt ngay trên chân khung bài
+    const m = (composer.getAttribute('aria-label') || '').match(/dưới tên (.+)$/);
+    account = m && m[1].trim();
+  }
+  const area = {x: left, y: top, width: Math.min(b.right, innerWidth) - left, height: bottom - top};
+  // Chốt chặn: mọi điểm mẫu trong vùng chụp phải thuộc khung bài và không thuộc ô bình luận của tài khoản.
+  const bad = [];
+  for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) {
+    const x = area.x + 3 + (area.width - 6) * i / 12, y = area.y + 3 + (area.height - 6) * j / 12;
+    const e = document.elementFromPoint(x, y);
+    if (!e || !d.contains(e) || (row && row.contains(e))) bad.push([Math.round(x), Math.round(y)]);
+  }
+  // Tên tài khoản không được hiện trong vùng chụp (nó chỉ nên có ở ô bình luận, đã loại).
+  const leak = account && [...d.querySelectorAll('span, a, div[dir="auto"]')].some(e => {
+    if (row && row.contains(e)) return false;
+    const r = e.getBoundingClientRect();
+    return r.height && r.bottom > area.y && r.top < area.y + area.height && e.childElementCount === 0
+           && e.textContent.trim() === account;
+  });
+  return {...area, account, bad, leak};
+}
+"""
+
+
+def post_area(page) -> dict:
+    area = page.evaluate(POST_AREA)
+    if area.get("error"):
+        raise RuntimeError(area["error"])
+    if area["bad"] or area["leak"] or area["height"] < 100:
+        raise RuntimeError(f"Vùng chụp dính phần ngoài bài / thông tin tài khoản — không chụp: {area}")
+    return {k: area[k] for k in ("x", "y", "width", "height")}
+
+
 def main(out_dir, prefix):
     sys.stdout.reconfigure(encoding="utf-8")
     log = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S+07:00"), "steps": []}
@@ -62,7 +111,8 @@ def main(out_dir, prefix):
         def shot(kind, shows):
             n[kind] += 1
             path = f"{out_dir}\\{prefix}_{kind}_{n[kind]:02d}.png"
-            data = cdp.send("Page.captureScreenshot", {"format": "png"})["data"]
+            area = post_area(p)  # chỉ khung bài — không thanh Facebook, menu trái (tên tài khoản), quảng cáo, ô bình luận
+            data = cdp.send("Page.captureScreenshot", {"format": "png", "clip": {**area, "scale": 1}})["data"]
             open(path, "wb").write(base64.b64decode(data))
             log["steps"].append({"shot": path, "kind": kind, "shows": shows, "at": time.strftime("%H:%M:%S")})
             return path
