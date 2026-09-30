@@ -114,3 +114,13 @@ def test_report_lists_issues_as_text(project):
     text = report(project, load_view(project), cfg, run).read_text(encoding="utf-8")
     assert "Facebook chỉ trả 40 kết quả; Yêu cầu đăng nhập lại" in text
     assert "['" not in text
+
+
+def test_report_task_lines_show_section_and_filters(project):
+    run = "RUN-2026-10-13-01"
+    init_progress(project, run, "full")
+    add_tasks(project, run, [{"kind": "search", "section": "posts", "query": "Roxana", "filters": {"year": 2021}},
+                             {"kind": "search", "section": "posts", "query": "Roxana", "filters": {"year": 2022}}])
+    text = report(project, load_view(project), project.load_config(), run).read_text(encoding="utf-8")
+    assert "Task T001 (Bài viết · \"Roxana\" · year=2021): chưa làm" in text
+    assert "Task T002 (Bài viết · \"Roxana\" · year=2022): chưa làm" in text

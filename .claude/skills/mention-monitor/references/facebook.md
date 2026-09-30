@@ -16,7 +16,7 @@ Công cụ: claude-in-chrome (Chrome của người dùng, đã đăng nhập). 
 
 ## 1. Ma trận tìm kiếm (lần quét đầu, `mode=full`)
 
-Với **mỗi term** trong mỗi nhóm của `config.json → keyword_groups`, gõ cả bản **có dấu** và **không dấu** (vd "Tường Phong" và "Tuong Phong"):
+Với **mỗi term** trong mỗi nhóm của `config.json → keyword_groups`, gõ cả bản **có dấu** và **không dấu** (vd "Tường Phong" và "Tuong Phong"; bỏ dấu cả `đ`/`Đ` → `d`/`D`; term đã không dấu thì chỉ một bản). Mục `hashtag` ghép từ **mọi** term của nhóm được áp dụng (viết liền, không dấu, chữ thường: "Tường Phong" → `tuongphong`, "#roxanaplaza" → `roxanaplaza`); term bắt đầu bằng `#` chỉ dùng cho mục `hashtag`:
 
 | `section` | URL | Bộ lọc |
 |---|---|---|
@@ -28,15 +28,18 @@ Với **mỗi term** trong mỗi nhóm của `config.json → keyword_groups`, g
 | `hashtag` | `https://www.facebook.com/hashtag/<term viết liền, không dấu, không cách>` | chỉ với nhóm `roxana`, `tuongphong`, `naviland` |
 
 Với mỗi container trong `config.json → containers` (và mỗi container mới phát hiện):
+- Lấy mã `FB-G…` bằng `add_record.py check --url <link nhóm>` (lấy phần tử có `record_type: "container"` — bài chỉ có link nhóm cũng khớp). Chưa có trong kho → ghi bản ghi `container` trước (mục 2 bước 3) rồi mới tạo task — task container luôn cần `container_id`.
 - `scan_mode=full` (nhóm/trang chuyên về vụ việc): `group_feed` — `https://www.facebook.com/groups/<id>/?sorting_setting=CHRONOLOGICAL`, hoặc `page_feed` với trang. Cuộn từ mới nhất tới bài cũ nhất, thu **mọi bài**.
 - `scan_mode=keyword` (nhóm chung): `in_group_search` — `https://www.facebook.com/groups/<id>/search/?q=<term>` cho mọi term.
 - `joined` khác `yes` và nhóm kín → không quét; đưa vào danh sách "cần xin vào".
+- `privacy` hoặc `joined` là `unknown` (vd nhóm nhập từ file cũ) → task đầu tiên của nhóm là mở trang nhóm, xác định công khai/kín và đã tham gia chưa, ghi `recheck` với `updates` (`privacy`, `joined`, `member_count`…); sau đó áp các quy tắc trên.
 
 File task cho `--add-tasks` (mảng):
 
 ```json
 [
   {"kind": "search", "section": "posts", "query": "Roxana Plaza", "filters": {"year": 2021}},
+  {"kind": "search", "section": "posts", "query": "Roxana Plaza", "filters": {"sort": "recent"}},
   {"kind": "search", "section": "groups", "query": "Tuong Phong"},
   {"kind": "container", "section": "group_feed", "container_id": "FB-G0001"},
   {"kind": "container", "section": "in_group_search", "container_id": "FB-G0005", "query": "Naviland"}
@@ -47,7 +50,7 @@ File task cho `--add-tasks` (mảng):
 
 1. Mở URL, áp bộ lọc. Ghi `started_at`.
 2. Cuộn danh sách. Với mỗi kết quả: lấy link ứng viên, chạy `add_record.py check --url <link>`. Đã có và không nằm trong `recheck-due` → bỏ qua (đếm là trùng). Chưa có → thu thập bài (mục 3) ngay hoặc thêm task `{"kind": "capture", "url": "<link>"}`.
-3. Kết quả là **nhóm/trang**: ghi `container` (xem schema.md). Tên hoặc mô tả có `context_terms` → `topic_dedicated: true`, `scan_mode: "full"`; ngược lại `keyword`. Nhóm kín: ghi `privacy: "private"`, `joined` theo nút trên trang ("Tham gia nhóm" → `no`, "Đã gửi yêu cầu" → `pending`, vào được feed → `yes`). Thêm task container nếu `joined=yes` hoặc nhóm công khai.
+3. Kết quả là **nhóm/trang** (hoặc gặp nhóm/trang chưa có trong kho qua một bài viết): ghi `container` (xem schema.md). Tên hoặc mô tả có `context_terms` → `topic_dedicated: true`, `scan_mode: "full"`; ngược lại `keyword`. Nhóm kín: ghi `privacy: "private"`, `joined` theo nút trên trang ("Tham gia nhóm" → `no`, "Đã gửi yêu cầu" → `pending`, vào được feed → `yes`). Thêm task container nếu `joined=yes` hoặc nhóm công khai.
 4. Kết quả khớp nhóm `requires_context` mà không có từ ngữ cảnh → `exclusion` (classification.md).
 5. Cuộn tới khi Facebook hiện "Hết kết quả", hoặc 3 lần cuộn liên tiếp không tải thêm → `reached_end: true`. Dừng sớm vì bất kỳ lý do gì → `reached_end: false` + ghi lý do vào `issues`.
 6. Ghi `search_log` (đếm `results_seen`, `results_new`, `results_duplicate`, `results_excluded`). Cập nhật task `done:LOG-...`.
@@ -57,13 +60,13 @@ File task cho `--add-tasks` (mảng):
 
 1. **Link riêng:** bấm vào mốc thời gian của bài (hoặc đọc `href` của nó) để lấy permalink. Dạng hợp lệ: `/groups/<gid>/posts/<pid>/`, `/groups/<gid>/permalink/<pid>/`, `/<user>/posts/<pfbid…>`, `/permalink.php?story_fbid=…&id=…`, `/photo/?fbid=…&set=…`, `/reel/<id>`, `/watch/?v=<id>`, `/videos/<id>`. Link `/share/…` → mở, lấy URL sau khi chuyển hướng. Không lấy được → `url_kind: "container_only"`, `url` = link nhóm.
 2. `check --url <permalink>` lần nữa. Có bản `origin=legacy` cùng nội dung (thử `check --text "<vài từ đầu>"`) → đặt `supersedes`.
-3. **Thời gian chính xác:** rê chuột (`computer` `hover`) lên mốc thời gian, đọc tooltip → `posted_at_precision: "exact"`. Không có tooltip → quy đổi thời gian tương đối theo giờ hiện tại → `relative_estimate`.
+3. **Thời gian chính xác:** rê chuột (`computer` `hover`) lên mốc thời gian, đọc tooltip → `posted_at` + `posted_at_precision: "exact"`. `posted_at_raw` luôn là chữ hiện trên bài (vd "22 tháng 8 lúc 09:15", "3 ngày"), không phải chữ trong tooltip. Không có tooltip → quy đổi thời gian tương đối theo giờ thu thập (`captured_at`, tức lúc đang xem trang) → `relative_estimate`.
 4. Bấm mọi "Xem thêm" trong thân bài.
 5. **Chụp thân bài** (`save_to_disk: true`); bài dài hơn một màn hình → cuộn và chụp tiếp, mỗi ảnh một evidence `post`.
 6. `get_page_text` → `snapshot_text`.
 7. **Ảnh đính kèm:** mở từng ảnh (album → mở hết). Ảnh là văn bản/tài liệu → chụp evidence `attach` (dùng `zoom` nếu chữ nhỏ) và **chép lại chữ** vào `attachments[].transcribed_text`. Ảnh thường → mô tả ngắn trong `attachments[].description`.
 8. **Bài chia sẻ:** ghi `shared_from`; bài gốc chưa có trong kho → thêm task `capture` cho bài gốc.
-9. Ghi số liệu hiển thị (`metrics` + `counted_at`). Người đăng: tên, `href` của link tên, huy hiệu (Quản trị viên, Người kiểm duyệt, Fan cứng…) — **không mở trang cá nhân**.
+9. Ghi số liệu hiển thị (`metrics` + `counted_at`). Người đăng: tên, `href` của link tên, huy hiệu (Quản trị viên, Người kiểm duyệt, Fan cứng…; không có huy hiệu hoặc chỉ là "Thành viên" → `null`) — **không mở trang cá nhân**.
 10. Phân loại (classification.md). **Chưa ghi vào kho** — thu thập bình luận trước (mục 4) để ảnh cuộn bình luận vào cùng `evidence` của bài.
 
 ## 4. Bình luận
@@ -98,6 +101,7 @@ File task cho `--add-tasks` (mảng):
 6. **Ghi vào kho theo thứ tự:**
    1. `add` bản ghi **source** với `evidence` = ảnh `post` + `attach` + toàn bộ `cscroll` → nhận `id` và `evidence_paths`.
    2. `add` **cả cây bình luận** trong một mảng: `source_id` = mã vừa nhận; `parent_comment_id` = `"@<chỉ số>"`; `scroll_refs[].file` = đường dẫn tương ứng trong `evidence_paths` (thứ tự ảnh `cscroll` giữ nguyên như khi gửi).
+   3. Bài có tin mới về tiến trình pháp lý/hành chính (thanh tra, toà, công an, đối thoại) → `add` một `event` (schema.md) với `related_ids` = mã bài; văn bản chỉ thấy qua ảnh đăng trên mạng xã hội → `reliability: "mxh"`.
    - Bài không có bình luận: bỏ bước 1–5, ghi source luôn.
 7. **Đối chiếu:** số bình luận thu được lệch > 5% so với số Facebook hiển thị → ghi vào `notes` của bài hoặc một `recheck`: "Facebook hiển thị 604, thu được 571 — có thể do bình luận bị ẩn/xoá/lọc spam".
 

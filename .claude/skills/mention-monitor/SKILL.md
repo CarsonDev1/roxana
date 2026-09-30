@@ -38,7 +38,7 @@ Chạy trong thư mục dự án (thư mục mở Claude Code, chứa `.claude` 
 | `python .claude/skills/mention-monitor/scripts/status.py report --run <RUN>` | viết `runs/<RUN>/report.md` |
 | `python .claude/skills/mention-monitor/scripts/import_legacy.py --file <xlsx>` | nhập file Excel cũ (chỉ lần đầu; chạy lại không nhân đôi) |
 
-**Ghi JSON bản ghi** bằng công cụ Write vào `runs/<RUN>/pending/<tên>.json`, rồi gọi `add`. Không dùng `echo`/heredoc (dễ vỡ tiếng Việt). Trường và giá trị hợp lệ: `references/schema.md`. Cách phân loại: `references/classification.md`.
+**Ghi JSON bản ghi** bằng công cụ Write vào `runs/<RUN>/pending/<tên>.json`, rồi gọi `add`. Không dùng `echo`/heredoc (dễ vỡ tiếng Việt). Đường dẫn tương đối của `--json`/`--add-tasks` tính theo thư mục đang đứng; `evidence[].file` và `snapshot_file` tương đối thì tính theo thư mục dự án — dùng đường dẫn tuyệt đối (như `save_to_disk` trả về) khi chạy với `--project` ở nơi khác. Trường và giá trị hợp lệ: `references/schema.md`. Cách phân loại: `references/classification.md`.
 
 Kết quả `add` — mỗi phần tử:
 - `added` → dùng `id` và `evidence_paths` (đường dẫn chuẩn của ảnh) cho bước sau.

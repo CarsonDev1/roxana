@@ -148,6 +148,14 @@ def summary(progress: dict) -> dict:
             "next": [t for t in tasks if t["status"] == "pending"][:10]}
 
 
+def _task_text(task: dict) -> str:
+    parts = [label("section", task["section"]) if task.get("section") else task.get("kind"),
+             task.get("container_id"), f"\"{task['query']}\"" if task.get("query") else None,
+             ", ".join(f"{k}={v}" for k, v in (task.get("filters") or {}).items()) or None,
+             task.get("url"), task.get("target_id")]
+    return " · ".join(str(p) for p in parts if p)
+
+
 def report(project: Project, view: View, config: dict, run_id: str) -> Path:
     path = _progress_path(project, run_id)
     progress = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -196,9 +204,8 @@ def report(project: Project, view: View, config: dict, run_id: str) -> Path:
         for t in progress["tasks"]:
             if t["status"] == "done":
                 continue
-            what = t.get("query") or t.get("container_id") or t.get("url") or t.get("target_id") or ""
             state = "bị chặn" if t["status"] == "blocked" else "chưa làm"
-            gaps.append(f"- Task {t['id']} ({t.get('kind')} {what}): {state}"
+            gaps.append(f"- Task {t['id']} ({_task_text(t)}): {state}"
                         + (f" — {t['note']}" if t.get("note") else ""))
     lines += gaps or ["- Không có"]
 

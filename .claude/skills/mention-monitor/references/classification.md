@@ -1,6 +1,6 @@
 # Phân loại nội dung
 
-Phân loại mô tả **nội dung**, không đánh giá đúng/sai, không phải kết luận pháp lý. Phân vân giữa hai mức → chọn mức nhẹ hơn và ghi lý do vào `notes`.
+Phân loại mô tả **nội dung**, không đánh giá đúng/sai, không phải kết luận pháp lý. Phân vân giữa hai mức → chọn mức nhẹ hơn và ghi lý do vào `notes` (`tone`: `tich_cuc`/`trung_lap` → `tieu_cuc` → `gay_gat`; `importance`: `thap` → `trung_binh` → `cao`).
 
 ## `tone` — thái độ của nội dung đối với các bên được nhắc
 
@@ -33,7 +33,7 @@ Phân loại mô tả **nội dung**, không đánh giá đúng/sai, không ph�
 |---|---|
 | `cao` | kèm văn bản chính thức · nêu đích danh một **bên chính** (6 bên có `primary: true` trong `key_parties`) kèm cáo buộc · tin mới về tiến trình pháp lý/hành chính · do admin nhóm hoặc một bên chính đăng · bài có tổng thích + bình luận + chia sẻ ≥ 100 · bình luận có ≥ 20 lượt thích |
 | `trung_binh` | nhắc tới vụ việc hoặc các bên, có thông tin hoặc ý kiến cụ thể |
-| `thap` | ngắn, không thêm thông tin: "hóng", "theo dõi", "+1", chỉ sticker/emoji |
+| `thap` | ngắn, không thêm thông tin: "hóng", "theo dõi", "+1", chỉ sticker/emoji, hoặc câu ngắn chỉ bày tỏ thái độ không nêu tên/sự việc cụ thể ("trả nhà cho dân đi") |
 
 `importance_reason` ghi điều kiện nào khớp, vd "Nêu đích danh bà Phạm Thị Ngọc Liên kèm cáo buộc". Mức `thap` **vẫn ghi đủ** nguyên văn và `scroll_refs` — không bỏ bình luận nào.
 
