@@ -108,8 +108,8 @@ File task cho `--add-tasks` (mảng):
 ## 5. Nhịp độ và điều kiện dừng
 
 - Nghỉ ngẫu nhiên 3–8 giây giữa các lần mở trang (`computer` `wait`), 2–5 giây giữa các lần bấm mở bình luận.
-- Làm theo lô: 1 container hoặc khoảng 10 task tìm kiếm; hết lô → `build_excel.py`.
-- **Dừng ngay** khi thấy: "Bạn tạm thời bị chặn", checkpoint / xác minh danh tính, CAPTCHA, form đăng nhập, cảnh báo hành vi tự động. Khi đó: `--set <task>=blocked --note "<điều thấy trên màn hình>"`, chạy `build_excel.py` và `report`, báo người dùng. **Không thử lại cùng thao tác, không tìm cách vượt qua.**
+- Làm theo lô: 1 container hoặc khoảng 10 task tìm kiếm; hết lô → `export_site.py`.
+- **Dừng ngay** khi thấy: "Bạn tạm thời bị chặn", checkpoint / xác minh danh tính, CAPTCHA, form đăng nhập, cảnh báo hành vi tự động. Khi đó: `--set <task>=blocked --note "<điều thấy trên màn hình>"`, chạy `export_site.py` và `report`, báo người dùng. **Không thử lại cùng thao tác, không tìm cách vượt qua.**
 - Trang "Nội dung này hiện không khả dụng": bài đã có trong kho → `recheck` `deleted` kèm ảnh thông báo; bài mới → bỏ qua và ghi vào `issues` của `search_log`.
 
 ## 6. Lần cập nhật (`mode=update`)
