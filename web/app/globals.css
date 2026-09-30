@@ -76,6 +76,9 @@ html:has(dialog[open]) { overflow: hidden; }
   .sheet[open], .sheet[open]::backdrop { animation: none !important; }
 }
 
+/* Khung "Đang tải trang…": chờ 120ms mới hiện để trang tải nhanh không bị nháy. */
+.page-loading { animation: sheet-fade 0.15s ease-out 0.12s both; }
+
 @media print {
   .no-print { display: none !important; }
   body { background: #fff; color: #000; }

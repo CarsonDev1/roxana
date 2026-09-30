@@ -3,6 +3,7 @@ import path from "node:path";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { createClient, supabaseConfigured } from "@/utils/supabase/server";
+import { keyedCache } from "./cache";
 import type { SiteData } from "./types";
 
 /** Thư mục dự án (chứa .claude, data/, screenshots/). Mặc định: thư mục cha của web/. */
@@ -14,26 +15,36 @@ export function dataFile(): string {
   return path.join(projectRoot(), "output", "site", "data.json");
 }
 
+// Snapshot nặng vài MB: đọc + parse lại ở mỗi lần chuyển trang làm web chậm, nên giữ bản đã parse trong bộ nhớ.
+const fileCache = keyedCache<SiteData>(60 * 60_000);
+const SUPABASE_TTL_MS = 60_000;
+const supabaseCache = keyedCache<SiteData | null>(SUPABASE_TTL_MS);
+
 /**
- * Dữ liệu mỗi lần tải trang (không cache).
- * - Trên máy: output/site/data.json (quét xong chạy export_site.py rồi F5 là thấy).
+ * Dữ liệu của trang.
+ * - Trên máy: output/site/data.json, đọc lại ngay khi file đổi (quét xong chạy export_site.py rồi F5 là thấy).
  * - Không có file đó (vd. trên Vercel) hoặc MM_DATA_SOURCE=supabase: bản mới nhất trong bảng site_snapshots của Supabase
- *   (sync_supabase.py đẩy lên sau mỗi đợt quét).
+ *   (sync_supabase.py đẩy lên sau mỗi đợt quét); bản mới hiện ra chậm nhất sau SUPABASE_TTL_MS.
  */
 export async function getData(): Promise<SiteData | null> {
   await connection();
   if (process.env.MM_DATA_SOURCE !== "supabase") {
+    const file = dataFile();
     try {
-      return JSON.parse(await fs.readFile(dataFile(), "utf-8")) as SiteData;
+      const st = await fs.stat(file);
+      return await fileCache(`${st.mtimeMs}:${st.size}`,
+        async () => JSON.parse(await fs.readFile(file, "utf-8")) as SiteData);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     }
   }
-  return supabaseConfigured ? latestSnapshot() : null;
+  if (!supabaseConfigured) return null;
+  const cookieStore = await cookies();
+  return supabaseCache("latest", () => latestSnapshot(cookieStore));
 }
 
-async function latestSnapshot(): Promise<SiteData | null> {
-  const supabase = createClient(await cookies());
+async function latestSnapshot(cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<SiteData | null> {
+  const supabase = createClient(cookieStore);
   const { data, error } = await supabase.from("site_snapshots").select("data")
     .order("id", { ascending: false }).limit(1).maybeSingle();
   if (error) throw new Error(`Supabase: ${error.message}`);
