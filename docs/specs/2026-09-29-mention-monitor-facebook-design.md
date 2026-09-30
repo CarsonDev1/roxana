@@ -508,3 +508,19 @@ Một agent phụ không có ngữ cảnh trước đọc `SKILL.md` + `facebook
 - Chạy tự động theo lịch khi không có người trông.
 - Tự đăng nhập, tự xin vào nhóm, bất kỳ thao tác ghi nào trên nền tảng.
 - Tra cứu thêm thông tin cá nhân của người đăng ngoài những gì hiển thị trên bài.
+
+---
+
+## 15. Điều chỉnh khi lập kế hoạch (thắng các mục trên khi khác nhau)
+
+1. **Khoá trùng bình luận không có `fb_comment_id`** = băm(`source_id` + `author_name` + `text`) + hậu tố `#n` (thứ tự xuất hiện của bình luận giống hệt trong cùng một lần `add`). Bỏ `posted_at_raw` khỏi khoá vì thời gian tương đối ("2 giờ" → "3 ngày") đổi giữa các lần quét. Khoá được lưu vào bản ghi ở trường `dedupe_key`.
+2. **Cập nhật container** (đã được duyệt vào nhóm, số thành viên, lần quét cuối…) qua bản ghi `recheck` có trường `updates` (chỉ các khoá: `privacy`, `joined`, `scan_mode`, `member_count`, `member_count_at`, `last_scanned_at`, `topic_dedicated`, `notes`, `name`).
+3. `search_log.section` có thêm `page_feed`.
+4. `key_parties[]` có thêm `label` (tên ngắn hiển thị), `press_sources`, `legacy: true` (bên nhập từ file cũ).
+5. Excel: sheet Bài viết thêm cột `Mã nhóm`, `Tháng đăng`; sheet Bình luận thêm cột `Tháng`, cột "Loại" đổi tên `Loại nội dung`; sheet Nhóm & Trang dùng cột `Chuyên đề vụ việc` và thêm cột `Cần xin vào`.
+6. `event` có thêm `sort_key` (với bản legacy: không giảm theo thứ tự dòng trong file cũ) để sắp xếp Dòng thời gian.
+7. `snapshot_text` được ghi ra file rồi **bỏ khỏi bản ghi**; bản ghi có thêm `snapshot_sha256`.
+8. Chỉ `parent_comment_id` được dùng tham chiếu trong mảng dạng `"@n"`.
+9. Kiểm tra schema nằm ở `schema.py` (spec ghi trong `common.py`); mô hình đọc ở `view.py`; hàm openpyxl ở `xlsx_helpers.py`.
+10. `supersedes` do Claude tự đặt phải trỏ tới một `source` `origin=legacy` có trong kho.
+11. Chụp ảnh lỗi 2 lần liên tiếp → dừng và hỏi người dùng (spec §11 định tự chuyển sang Playwright; nay chỉ **đề xuất** Playwright, vì trình duyệt Playwright cần người dùng tự đăng nhập Facebook).
