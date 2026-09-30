@@ -54,3 +54,14 @@ def make_png(tmp_path):
         return path
 
     return _make
+
+
+@pytest.fixture(autouse=True)
+def fixed_clock(monkeypatch):
+    """Dữ liệu mẫu dùng ngày tháng 10/2026; đặt 'bây giờ' sau đó để chốt chặn giờ tương lai không chặn nhầm."""
+    from datetime import datetime
+
+    import add_record
+    from common import TZ
+
+    monkeypatch.setattr(add_record, "NOW", lambda: datetime(2027, 1, 1, tzinfo=TZ))

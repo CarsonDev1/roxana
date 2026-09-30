@@ -1,16 +1,27 @@
 # Quét Facebook
 
-Công cụ: claude-in-chrome (Chrome của người dùng, đã đăng nhập). Nạp một lần bằng ToolSearch:
-`select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,mcp__claude-in-chrome__find,mcp__claude-in-chrome__get_page_text,mcp__claude-in-chrome__javascript_tool`
+## Công cụ trình duyệt — đã chạy thử thật ngày 30/09/2026 (bài #6, #4 của file cũ)
 
-- **Chụp ảnh:** `computer` với `action: "screenshot"` (hoặc `"zoom"` + `region`) và **`save_to_disk: true`** → kết quả trả đường dẫn file đã lưu → dùng làm `evidence[].file`. Ảnh phải thấy tên người đăng, mốc thời gian và nội dung.
-- **Bản chữ:** `get_page_text` → `snapshot_text`.
-- **Đọc DOM:** `javascript_tool` **chỉ để đọc** (không `click()`, không gửi form, không sửa trang).
-- Không bấm nút có thể mở hộp thoại trình duyệt (alert/confirm).
+**Cách A — Playwright điều khiển một Chrome riêng trên máy này (đã kiểm chứng, dùng mặc định):**
+1. `powershell -File .claude/skills/mention-monitor/scripts/browser/start_chrome.ps1` — mở Chrome với profile riêng `%LOCALAPPDATA%\RoxanaMonitor\chrome-profile` (ngoài repo, không vào git) và cổng điều khiển `127.0.0.1:9222`. Kiểm tra: `curl -s http://127.0.0.1:9222/json/version`.
+2. Lần đầu: nhờ người dùng **tự đăng nhập** Facebook trong cửa sổ đó (phiên được giữ cho các lần sau). Claude không gõ mật khẩu.
+3. Các script (Python có Playwright: `python -m pip install playwright`, không cần tải trình duyệt):
+   - `scripts/browser/fb.py status | goto <url> | shot <png> | clip <png> x y w h [scale] | text <txt> | js <file.js> [out] | scroll <dy>` — một thao tác mỗi lần gọi.
+   - `scripts/browser/capture_post.py <thư_mục_ảnh> <tiền_tố>` — với bài đang mở ở permalink: chụp 2 ảnh thân bài, chọn **"Tất cả bình luận"**, mở hết "Xem thêm"/phản hồi, ghi bản chữ, chụp ảnh cuộn bình luận, đọc DOM bình luận → `<tiền_tố>_comments.json`, nhật ký giờ từng ảnh → `<tiền_tố>_log.json`.
+   - `scripts/browser/comment_times.py <out.json>` — rê chuột lên mốc thời gian từng bình luận, đọc tooltip (giờ chính xác). Tooltip đôi khi không kịp hiện → chạy lại, gộp kết quả.
+   - Ảnh lưu thẳng vào thư mục chỉ định; dùng đường dẫn đó làm `evidence[].file` (add_record chép vào `screenshots/` và băm). `capture_tool: "playwright"`.
+4. Nếu lệnh chụp bị treo: thường do có **2 tab** cùng mở (tab khôi phục phiên) hoặc cửa sổ bị che — đóng tab thừa, script luôn `bring_to_front()` trước khi chụp; `start_chrome.ps1` đã tắt chế độ ngừng vẽ khi cửa sổ bị che.
+
+**Cách B — extension claude-in-chrome:** chỉ dùng khi `list_connected_browsers` cho thấy trình duyệt **trên chính máy này** (`onThisComputer`/`isLocal`). Ngày 30/09/2026 extension đang nối với một máy **macOS khác** → không dùng được: người dùng không thấy cửa sổ, và ảnh `save_to_disk` nằm ở máy kia. Không bao giờ thao tác trên trình duyệt ở máy khác mà không hỏi người dùng.
+
+Quy tắc chung:
+- Ảnh phải thấy tên người đăng, mốc thời gian và nội dung. Bản chữ trang → `snapshot_file`/`snapshot_text`.
+- JS **chỉ để đọc** (không `click()` bằng JS, không gửi form, không sửa trang). Chỉ bấm: bộ lọc bình luận, "Xem thêm", "Xem N phản hồi", "Xem thêm bình luận". Không bấm "Tham gia", "Có" ở hộp gợi ý cài đặt, hay bất cứ nút có tác động nào.
+- **Mọi giờ (`captured_at`, `counted_at`, `checked_at`) lấy từ nhật ký của script / giờ ghi file, không gõ ước lượng.** Không ghi `captured_at` của từng ảnh thì add_record lấy giờ ghi file ảnh; giờ ở tương lai bị từ chối.
 
 ## 0. Chuẩn bị
 
-1. `tabs_context_mcp` → `tabs_create_mcp` (tab mới, không dùng tab cũ của người dùng).
+1. Mở trình duyệt theo Cách A (hoặc B nếu hợp lệ).
 2. Mở `https://www.facebook.com/`. Thấy form đăng nhập → **dừng**, nhờ người dùng tự đăng nhập.
 3. Làm bước 1 của SKILL.md (RUN, stats, progress).
 
@@ -58,7 +69,7 @@ File task cho `--add-tasks` (mảng):
 
 ## 3. Thu thập một bài
 
-1. **Link riêng:** bấm vào mốc thời gian của bài (hoặc đọc `href` của nó) để lấy permalink. Dạng hợp lệ: `/groups/<gid>/posts/<pid>/`, `/groups/<gid>/permalink/<pid>/`, `/<user>/posts/<pfbid…>`, `/permalink.php?story_fbid=…&id=…`, `/photo/?fbid=…&set=…`, `/reel/<id>`, `/watch/?v=<id>`, `/videos/<id>`. Link `/share/…` → mở, lấy URL sau khi chuyển hướng. Không lấy được → `url_kind: "container_only"`, `url` = link nhóm.
+1. **Link riêng:** bấm vào mốc thời gian của bài (hoặc đọc `href` của nó) để lấy permalink. Dạng hợp lệ: `/groups/<gid>/posts/<pid>/`, `/groups/<gid>/permalink/<pid>/`, `/<user>/posts/<pfbid…>`, `/permalink.php?story_fbid=…&id=…`, `/photo/?fbid=…&set=…`, `/reel/<id>`, `/watch/?v=<id>`, `/videos/<id>`. Link `/share/…` → mở, lấy URL sau khi chuyển hướng. Không lấy được → `url_kind: "container_only"`, `url` = link nhóm. `href` của mốc thời gian là `#` cho tới khi **rê chuột** lên nó — rê chuột trước rồi mới đọc `href` (tooltip hiện cùng lúc). Link ảnh `/photo/?fbid=…&set=pcb.<pid>` hoặc `set=gm.<pid>` chỉ là **một ảnh trong bài**: bình luận nằm ở bài — mở link "Xem bài viết" ở khung bên phải (`/groups/<gid>/permalink/<pid>/`) và thu thập ở đó; link ảnh ghi vào `attachments[].url`.
 2. `check --url <permalink>` lần nữa. Có bản `origin=legacy` cùng nội dung (thử `check --text "<vài từ đầu>"`) → đặt `supersedes`.
 3. **Thời gian chính xác:** rê chuột (`computer` `hover`) lên mốc thời gian, đọc tooltip → `posted_at` + `posted_at_precision: "exact"`. `posted_at_raw` luôn là chữ hiện trên bài (vd "22 tháng 8 lúc 09:15", "3 ngày"), không phải chữ trong tooltip. Không có tooltip → quy đổi thời gian tương đối theo giờ thu thập (`captured_at`, tức lúc đang xem trang) → `relative_estimate`.
 4. Bấm mọi "Xem thêm" trong thân bài.
@@ -71,31 +82,16 @@ File task cho `--add-tasks` (mảng):
 
 ## 4. Bình luận
 
-1. Mở bộ lọc bình luận (chữ "Phù hợp nhất" phía trên bình luận) → chọn **"Tất cả bình luận"**. Không có tuỳ chọn này → ghi vào `notes` của bài.
+1. Mở bộ lọc bình luận (chữ "Phù hợp nhất" phía trên bình luận) → chọn **"Tất cả bình luận"**. Menu có 3 mục: "Phù hợp nhất", "Mới nhất", "Tất cả bình luận"; dòng mô tả của "Mới nhất" cũng chứa cụm "tất cả bình luận" → chọn mục có **dòng đầu** đúng bằng "Tất cả bình luận". Nhãn nút có ký tự ẩn `﻿` ở cuối. Chụp xong kiểm tra ảnh cuộn: phía trên bình luận phải hiện chữ "Tất cả bình luận". Không có tuỳ chọn này → ghi vào `notes` của bài.
 2. Lặp bấm "Xem thêm bình luận", "Xem <N> phản hồi", "Xem thêm" trong bình luận dài — tới khi không còn nút nào. Nghỉ 2–5 giây giữa các lần bấm.
-3. **Đọc bình luận** bằng `javascript_tool` (chỉ đọc). Phiên bản khởi đầu — nếu Facebook đổi giao diện, điều chỉnh và ghi lại bản mới vào đây:
-
-   ```js
-   (() => {
-     const out = [];
-     document.querySelectorAll('div[role="article"][aria-label]').forEach((el, i) => {
-       const label = el.getAttribute('aria-label') || '';
-       if (!/bình luận|phản hồi|comment|reply/i.test(label)) return;
-       const links = [...el.querySelectorAll('a[href]')];
-       const author = links.find(a => a.innerText.trim() && !a.href.includes('comment_id='));
-       const permalink = links.find(a => a.href.includes('comment_id='));
-       const parts = [...el.querySelectorAll('div[dir="auto"]')].map(d => d.innerText.trim()).filter(Boolean);
-       let depth = 1;
-       for (let p = el.parentElement; p; p = p.parentElement) if (p.getAttribute && p.getAttribute('role') === 'article') depth++;
-       out.push({i, label, author: author && author.innerText.trim(), author_href: author && author.href,
-                 time_text: permalink && permalink.innerText.trim(), comment_url: permalink && permalink.href,
-                 text: [...new Set(parts)].join('\n'), depth: Math.min(depth, 3)});
-     });
-     return JSON.stringify(out);
-   })()
-   ```
-
-   `fb_comment_id` = tham số `comment_id` (hoặc `reply_comment_id` với trả lời) trong `comment_url`. Đọc DOM thất bại → dùng `get_page_text` và tách thủ công.
+3. **Đọc bình luận** (chỉ đọc DOM): dùng `READ_COMMENTS` trong `scripts/browser/capture_post.py` — bản đã chạy đúng trên 2 bài thật (7 bình luận, 2 trả lời, 1 sticker, 1 emoji). Điều đã kiểm chứng:
+   - Mỗi bình luận là `div[role="article"]` có `aria-label` "Bình luận dưới tên <tên> vào <thời gian> trước" hoặc "Phản hồi bình luận của <A> dưới tên <B> …".
+   - Trang phía sau dialog chứa **bản ẩn** của cùng các bình luận → chỉ lấy phần tử trong dialog cuối và đang hiển thị (`getClientRects().length`), loại trùng theo `comment_id`/`reply_comment_id`.
+   - Trả lời **không** còn lồng `role="article"` → cấp 2 xác định bằng nhãn "Phản hồi…" hoặc `reply_comment_id`; `comment_id` trong link của trả lời là mã bình luận cha.
+   - `fb_comment_id` = `reply_comment_id` (trả lời) hoặc `comment_id` (bình luận). Link tên người viết có `__cft__`/`__tn__` — add_record tự làm sạch.
+   - Emoji là ảnh: lấy từ `img[alt]` (vd "❤️", "👍") ghép thành `text`. Sticker: `aria-label` chứa "sticker"/"nhãn dán" → `text: ""` + `attachments[{kind: "image", description: "Nhãn dán …"}]`.
+   - Số cảm xúc của bình luận: `aria-label` dạng "3 cảm xúc; xem ai đã bày tỏ cảm xúc…"; không có → 0.
+   Đọc DOM thất bại → dùng bản chữ trang và tách thủ công.
 4. **Ảnh cuộn:** cuộn lên đầu phần bình luận; lặp: chụp (`save_to_disk: true`) → cuộn khoảng 80% chiều cao màn hình (chừa phần chồng lấn để không hở bình luận). Mỗi ảnh là một evidence `cscroll` của **bài**. Ghi lại bình luận nào ở ảnh thứ mấy, vị trí thứ mấy.
 5. **Bình luận mức cao** (classification.md) → cuộn tới, chụp riêng bằng `zoom` vùng bình luận → evidence `comment` của bình luận đó.
 6. **Ghi vào kho theo thứ tự:**

@@ -17,12 +17,13 @@ import json
 import re
 import shutil
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from PIL import Image
 
-from common import (IdAllocator, Project, append_records, dedupe_key, fold, normalize_author_url, normalize_url,
-                    now_iso, read_records, setup_stdout, sha256_file, today_str)
+from common import (TZ, IdAllocator, Project, append_records, dedupe_key, fold, normalize_author_url,
+                    normalize_url, now_iso, parse_iso, read_records, setup_stdout, sha256_file, today_str)
 from schema import validate
 
 _LONE_SURROGATE = re.compile(r"[\ud800-\udfff]")
@@ -107,6 +108,32 @@ def _resolve_batch_refs(rec: dict, batch_ids: list[str | None]) -> list[str]:
     return []
 
 
+FUTURE_TOLERANCE = timedelta(minutes=2)
+NOW = lambda: datetime.now(TZ)  # noqa: E731 — thay được trong test
+TIME_FIELDS = ("captured_at", "checked_at", "posted_at", "started_at", "ended_at", "member_count_at",
+               "last_scanned_at")
+
+
+def _file_time(path: Path) -> str:
+    return datetime.fromtimestamp(path.stat().st_mtime, TZ).isoformat(timespec="seconds")
+
+
+def _check_times(rec: dict) -> list[str]:
+    """Giờ nhập tay rơi vào tương lai là giờ đoán — với bằng chứng thì phải từ chối."""
+    limit = NOW() + FUTURE_TOLERANCE
+    found = [(f, rec.get(f)) for f in TIME_FIELDS]
+    found += [(f"metrics.{f}", (rec.get("metrics") or {}).get(f)) for f in ("counted_at",)]
+    found += [(f"updates.{f}", (rec.get("updates") or {}).get(f)) for f in ("member_count_at", "last_scanned_at")]
+    found += [(f"evidence[{i}].captured_at", e.get("captured_at")) for i, e in enumerate(rec.get("evidence") or [])]
+    errors = []
+    for field, value in found:
+        dt = parse_iso(value) if isinstance(value, str) else None
+        if dt and dt > limit:
+            errors.append(f"{field}={value} nằm ở tương lai (bây giờ là {NOW().isoformat(timespec='seconds')}) — dùng giờ thật lúc chụp/đếm, "
+                          "không ước lượng")
+    return errors
+
+
 def _check_references(project: Project, rec: dict, by_id: dict[str, dict],
                       cscroll: dict[str, set[str]]) -> list[str]:
     errors: list[str] = []
@@ -154,8 +181,8 @@ def _import_evidence(project: Project, rec: dict, platform: str, day: str) -> li
         dest = dest_dir / f"{rec['id']}_{kind}_{counters[kind]:02d}{src.suffix.lower() or '.png'}"
         shutil.copy2(src, dest)
         stored.append({**item, "file": project.rel(dest), "sha256": sha256_file(dest),
-                       "captured_at": (item.get("captured_at") or rec.get("captured_at")
-                                       or rec.get("checked_at") or now_iso()),
+                       # giờ chụp thật của từng ảnh = giờ ghi file (copy2 giữ nguyên), không phải giờ nhập tay
+                       "captured_at": item.get("captured_at") or _file_time(src),
                        "capture_tool": item.get("capture_tool", "claude-in-chrome")})
     return stored
 
@@ -200,7 +227,7 @@ def add_records(project: Project, incoming: list[dict], run_id: str, config: dic
         if not errors:
             errors = validate(rec, config)
         if not errors:
-            errors = _check_references(project, rec, by_id, cscroll)
+            errors = _check_times(rec) + _check_references(project, rec, by_id, cscroll)
         if not errors:
             _normalize_authors(rec)
         if errors:

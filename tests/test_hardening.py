@@ -129,3 +129,36 @@ def test_exclusion_only_accepts_allowlisted_fields(project, extra):
     assert res["status"] == "invalid", res
     assert not project.records_path.exists()
     assert not (project.root / "screenshots").exists() and not (project.root / "snapshots").exists()
+
+
+@pytest.mark.parametrize("field", ["captured_at", "checked_at_recheck", "counted_at"])
+def test_future_timestamps_are_invalid(project, make_png, field):
+    from datetime import datetime, timedelta
+    from common import TZ
+    import add_record
+    future = (add_record.NOW() + timedelta(minutes=10)).isoformat(timespec="seconds")
+    if field == "checked_at_recheck":
+        src = _source(project, make_png)
+        rec = {"record_type": "recheck", "target_id": src["id"], "checked_at": future, "status": "active"}
+    else:
+        rec = fb_source([ev(make_png("f.png"))], url="https://www.facebook.com/groups/1/posts/88/")
+        if field == "captured_at":
+            rec["captured_at"] = future
+        else:
+            rec["metrics"] = {**rec["metrics"], "counted_at": future}
+    [res] = _add(project, [rec])
+    assert res["status"] == "invalid" and any("tương lai" in e for e in res["errors"]), res
+
+
+def test_evidence_time_defaults_to_file_time_not_record_time(project, make_png):
+    import os
+    from datetime import datetime
+    from common import TZ
+    shot = make_png("t.png")
+    stamp = datetime(2026, 9, 29, 9, 53, 37, tzinfo=TZ).timestamp()
+    os.utime(shot, (stamp, stamp))
+    [res] = _add(project, [fb_source([ev(shot)], url="https://www.facebook.com/groups/1/posts/89/",
+                                     captured_at="2026-09-29T09:51:00+07:00")])
+    records, _ = read_records(project.records_path)
+    stored = next(r for r in records if r["id"] == res["id"])
+    assert stored["evidence"][0]["captured_at"] == "2026-09-29T09:53:37+07:00"
