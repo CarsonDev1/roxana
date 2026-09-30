@@ -136,13 +136,20 @@ def main(argv=None) -> int:
         page = ctx.new_page()
         cdp = ctx.new_cdp_session(page)
         for c in cands:
-            if c["url"] in index:
+            prev = index.get(c["url"])
+            # lỗi tạm (trang sập, chuyển hướng bị ngắt, mạng) được thử lại, tối đa 3 lần
+            if prev is not None and not ("error" in prev and prev.get("attempts", 1) < 3):
                 continue
             if "facebook.com" in c["url"]:
                 index[c["url"]] = {"skipped": "facebook — thuộc luồng Facebook"}
                 continue
             try:
-                page.goto(c["url"], wait_until="domcontentloaded", timeout=60000)
+                try:
+                    page.goto(c["url"], wait_until="domcontentloaded", timeout=60000)
+                except Exception as exc:  # link Google News tự chuyển sang bài báo giữa chừng → không phải lỗi
+                    if "interrupted by another navigation" not in str(exc):
+                        raise
+                    page.wait_for_timeout(3000)
                 if "news.google.com" in page.url:  # trang chuyển hướng của Google News
                     page.wait_for_url(lambda u: "news.google.com" not in u, timeout=30000)
                 page.wait_for_load_state("domcontentloaded")
@@ -153,8 +160,16 @@ def main(argv=None) -> int:
                     continue
                 info = page.evaluate(EXTRACT)
             except Exception as exc:
-                index[c["url"]] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+                index[c["url"]] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}",
+                                   "attempts": (prev or {}).get("attempts", 0) + 1}
                 index_f.write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
+                if page.is_closed() or "crash" in str(exc).lower() or "closed" in str(exc).lower():
+                    try:  # trang đã sập thì mọi lần mở sau đều lỗi theo → mở trang mới
+                        page.close()
+                    except Exception:
+                        pass
+                    page = ctx.new_page()
+                    cdp = ctx.new_cdp_session(page)
                 continue
             final = info["canonical"] or info["final"]
             key = key_of(final)

@@ -282,6 +282,8 @@ def dedupe_key(rec: dict) -> str | None:
     if kind == "comment":
         if rec.get("fb_comment_id"):
             return f"fbc:{rec['fb_comment_id']}"
+        if rec.get("yt_comment_id"):
+            return f"ytc:{rec['yt_comment_id']}"
         return "cmt:" + short_hash(rec.get("source_id") or "", norm_text(rec.get("author_name")),
                                    norm_text(rec.get("text")))
     if kind == "container":

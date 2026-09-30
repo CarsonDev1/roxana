@@ -29,6 +29,16 @@ def fb_ready(d: Path) -> bool:
     return log.exists() and not json.loads(log.read_text(encoding="utf-8")).get("unavailable")
 
 
+def namesake(project: Project, d: Path, reason: str, run: str) -> dict:
+    from add_record import add_records
+    meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
+    rec = {"record_type": "exclusion", "platform": "web", "url": meta.get("canonical") or meta.get("final"),
+           "excerpt": (meta.get("title") or "")[:100], "keywords_matched": meta.get("keywords") or [],
+           "reason": f"Chỉ trùng tên — {reason}"[:300]}
+    [res] = add_records(project, [rec], run, project.load_config())
+    return res
+
+
 def main(argv=None) -> int:
     setup_stdout()
     ap = argparse.ArgumentParser()
@@ -56,6 +66,11 @@ def main(argv=None) -> int:
         cls = json.loads((d / "cls.json").read_text(encoding="utf-8"))
         if cls.get("hold"):  # người phân loại thấy nội dung lấy sai → chờ chụp lại, không ghi
             summary.setdefault("hold", []).append({"bundle": d.name, "reason": cls["hold"]})
+            continue
+        if cls.get("namesake") and kind == "web":  # chỉ trùng tên → danh sách loại trừ, không ghi bài
+            res = {"source": namesake(project, d, cls["namesake"], args.run)}
+            (d / "applied.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+            summary["namesake"] = summary.get("namesake", 0) + 1
             continue
         try:
             if kind == "web":
