@@ -166,8 +166,18 @@ def main(argv=None) -> int:
                 if any(b.lower() in (title + page.evaluate("document.body.innerText.slice(0,2000)")).lower() for b in BLOCK):
                     index[c["url"]] = {"blocked": page.url}
                     continue
-                page.evaluate("async () => { for (let i = 0; i < 25 && innerHeight + scrollY < document.body.scrollHeight - 5; i++) "
-                              "{ scrollBy(0, 1200); await new Promise(r => setTimeout(r, 250)); } scrollTo(0, 0); }")
+                # cuộn tới đáy (trang dài nhiều ảnh văn bản) rồi chờ mọi ảnh lớn tải xong (tối đa ~60 giây)
+                page.evaluate("""async () => {
+                  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+                  for (let i = 0; i < 150 && innerHeight + scrollY < document.body.scrollHeight - 5; i++) { scrollBy(0, 1200); await sleep(250); }
+                  for (let t = 0; t < 60; t++) {
+                    const pending = [...document.images].filter(im => !im.complete && im.getBoundingClientRect().width >= 300);
+                    if (!pending.length) break;
+                    pending.forEach(im => im.scrollIntoView({block: 'center'}));
+                    await sleep(1000);
+                  }
+                  scrollTo(0, 0);
+                }""")
                 page.wait_for_timeout(800)
                 # thanh menu dính, nút liên hệ nổi, hộp chat… không che nội dung trong ảnh chụp
                 page.evaluate("() => document.querySelectorAll('body *').forEach(e => { const p = getComputedStyle(e).position; "
