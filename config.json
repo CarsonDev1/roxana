@@ -1,0 +1,22 @@
+{
+  "project_name": "Roxana Plaza",
+  "output_file": "Roxana_Tong_hop.xlsx",
+  "timezone": "+07:00",
+  "keyword_groups": [
+    {"id": "roxana", "label": "Roxana Plaza",
+     "terms": ["Roxana Plaza", "Roxana", "Roxanna", "Roxanna Plaza", "Roxana Plaza Bình Dương", "#roxanaplaza"]},
+    {"id": "tuongphong", "label": "CĐT Tường Phong",
+     "terms": ["Tường Phong", "Công ty Tường Phong", "CĐT Tường Phong"]},
+    {"id": "lien", "label": "Bà Phạm Thị Ngọc Liên",
+     "terms": ["Phạm Thị Ngọc Liên", "Phạm Ngọc Liên", "bà Ngọc Liên"], "requires_context": true},
+    {"id": "naviland", "label": "Naviland", "terms": ["Naviland", "Navi Land", "Nvl Roxana"]},
+    {"id": "launamtuong", "label": "Ông Lầu Nam Tường", "terms": ["Lầu Nam Tường"], "requires_context": true},
+    {"id": "tuyen", "label": "Bà Dương Thị Phương Tuyền",
+     "terms": ["Dương Thị Phương Tuyền", "Phương Tuyền"], "requires_context": true},
+    {"id": "viethome", "label": "Viethome", "terms": ["Viethome", "Viet Home Roxana"], "requires_context": true}
+  ],
+  "context_terms": ["Roxana", "Tường Phong", "Naviland", "Viethome", "Bình Hoà", "Thuận An", "đòi nhà"],
+  "key_parties": [],
+  "containers": [],
+  "recheck_policy_days": {"cao": 0, "trung_binh": 30, "thap": 90}
+}
