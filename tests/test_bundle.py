@@ -173,3 +173,53 @@ def test_apply_article(project, tmp_path, make_png):
     res = apply_article(project, b, cls, RUN)
     assert res["status"] == "added" and res["id"].startswith("WEB-P")
     assert apply_article(project, b, cls, RUN)["status"] == "duplicate"
+
+
+def _video(tmp_path, make_png):
+    import shutil
+    b = tmp_path / "yt" / "abcdefghijk"
+    b.mkdir(parents=True)
+    for name in ("video_01.png", "cscroll_01.png", "cscroll_02.png"):
+        shutil.copy(make_png(name), b / name)
+    (b / "video.txt").write_text("Dừng thi công, cư dân Roxana Plaza cầu cứu\n\nChủ đầu tư Tường Phong tranh chấp", encoding="utf-8")
+    (b / "meta.json").write_text(json.dumps({
+        "video_id": "abcdefghijk", "url": "https://www.youtube.com/watch?v=abcdefghijk", "channel": "CAFELAND",
+        "channel_url": "http://www.youtube.com/@cafeland", "published_raw": "2021-07-29T06:00:00-07:00",
+        "published": "2021-07-29T20:00:00+07:00", "views": 69666, "like_label": "359 lượt thích", "length_s": 519,
+        "relevant": True}), encoding="utf-8")
+    (b / "log.json").write_text(json.dumps({
+        "started_at": "2026-09-30T14:41:46+07:00", "count_shown": "173 bình luận",
+        "steps": [{"kind": "post", "shot": "video_01.png", "at": "14:41:55", "shows": "Video (phần 1/1)"},
+                  {"kind": "cscroll", "shot": "cscroll_01.png", "at": "14:43:00", "shows": "Bình luận 1/2", "comments": ["A1", "A1.r1"]},
+                  {"kind": "cscroll", "shot": "cscroll_02.png", "at": "14:43:02", "shows": "Bình luận 2/2", "comments": ["A1.r1", "B2"]}]}),
+        encoding="utf-8")
+    (b / "comments.json").write_text(json.dumps([
+        {"yt_comment_id": "A1", "author": "@a", "author_href": "https://www.youtube.com/@a", "text": "Tường Phong trả nhà đi",
+         "time_text": "5 năm trước", "likes": "7", "is_reply": False, "parent_yt_comment_id": None},
+        {"yt_comment_id": "A1.r1", "author": "@b", "author_href": "https://www.youtube.com/@b", "text": "Đồng ý 👍",
+         "time_text": "5 năm trước (đã chỉnh sửa)", "likes": "0", "is_reply": True, "parent_yt_comment_id": "A1"},
+        {"yt_comment_id": "B2", "author": "@c", "author_href": None, "text": "hóng", "time_text": "3 năm trước", "likes": "1,2 N",
+         "is_reply": False, "parent_yt_comment_id": None}]), encoding="utf-8")
+    return b
+
+
+def test_apply_video_with_comment_tree(project, tmp_path, make_png):
+    from bundle_to_records import apply_video
+    from common import read_records
+    b = _video(tmp_path, make_png)
+    base = {"tone": "tieu_cuc", "claim_type": "y_kien", "importance": "thap", "topics": [], "entities_mentioned": []}
+    cls = {"source": {"tone": "tieu_cuc", "claim_type": "thong_tin", "importance": "cao", "importance_reason": "Tin dừng thi công",
+                      "topics": ["cham_ban_giao"], "entities_mentioned": ["tuongphong"]},
+           "comments": {"A1": dict(base, importance="trung_binh", entities_mentioned=["tuongphong"]), "A1.r1": base, "B2": base}}
+    res = apply_video(project, b, cls, RUN)
+    assert res["source"]["status"] == "added" and res["source"]["id"].startswith("YT-P")
+    assert [c["status"] for c in res["comments"]] == ["added"] * 3, res["comments"]
+    recs = {r["id"]: r for r in read_records(project.records_path)[0]}
+    video = recs[res["source"]["id"]]
+    assert video["platform"] == "youtube" and video["metrics"]["views"] == 69666 and video["metrics"]["reactions"] == 359
+    assert video["metrics"]["comments"] == 173 and len(video["evidence"]) == 3
+    top, reply, other = (recs[c["id"]] for c in res["comments"])
+    assert reply["parent_comment_id"] == top["id"] and reply["depth"] == 2
+    assert [r["position"] for r in reply["scroll_refs"]] == [2, 1] and other["reactions"] == 1200
+    assert top["posted_at_precision"] == "relative_estimate" and top["url"].endswith("&lc=A1")
+    assert apply_video(project, b, cls, RUN)["source"]["status"] == "duplicate"

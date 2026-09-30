@@ -34,4 +34,4 @@ importance_reason, topics, entities_mentioned}}`. Báo chính thống đưa tin 
 
 ## Chưa làm (ghi vào báo cáo "chưa quét được")
 
-Bình luận dưới bài báo (VnExpress, Tuổi Trẻ… tải động), YouTube, TikTok.
+Bình luận dưới bài báo (VnExpress, Tuổi Trẻ… tải động), TikTok. YouTube: xem `youtube.md`.

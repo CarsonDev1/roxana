@@ -289,6 +289,87 @@ def apply_article(project: Project, bundle: Path, cls: dict, run_id: str) -> dic
     return res
 
 
+def video_drafts(bundle: Path) -> dict:
+    """YouTube bundle (ytscan/capture_videos.py) → source (video) + comment drafts without classification."""
+    bundle = Path(bundle)
+    meta, log = _load(bundle, "meta.json", {}), _load(bundle, "log.json", {})
+    steps = log.get("steps") or []
+    posts = [s for s in steps if s["kind"] == "post"]
+    scrolls = [s for s in steps if s["kind"] == "cscroll"]
+    captured = log.get("started_at") or meta.get("captured_at")
+    likes = _num((re.search(r"([\d.,]+\s*(?:N|K|Tr|triệu)?)", meta.get("like_label") or "") or [None, ""])[1]
+                 .replace("Tr", "triệu")) if meta.get("like_label") else None
+    shown = re.match(r"\s*([\d.,]+)", log.get("count_shown") or "")
+    source = {
+        "record_type": "source", "platform": "youtube", "content_type": "reel" if meta.get("shorts") else
+        "live" if meta.get("live") else "video",
+        "url": meta["url"], "url_kind": "permalink", "container_name": meta.get("channel"),
+        "author_name": meta.get("channel") or "(không rõ)", "author_url": meta.get("channel_url"), "author_kind": "page",
+        "posted_at_raw": meta.get("published_raw") or "", "posted_at": meta.get("published"),
+        "posted_at_precision": "exact" if meta.get("published") else "unknown",
+        "text": (bundle / "video.txt").read_text(encoding="utf-8"), "attachments": [],
+        "metrics": {"views": meta.get("views"), "reactions": likes, "comments": _num(shown.group(1)) if shown else None,
+                    "shares": None, "counted_at": captured},
+        "captured_at": captured,
+        "evidence": [{"file": str(bundle / s["shot"]), "kind": "post", "shows": s["shows"], "captured_at": _at(log, s["at"]),
+                      "capture_tool": "playwright"} for s in posts]
+                    + [{"file": str(bundle / s["shot"]), "kind": "cscroll", "shows": s["shows"], "captured_at": _at(log, s["at"]),
+                        "capture_tool": "playwright"} for s in scrolls],
+        "snapshot_file": str(bundle / "video.txt"),
+        "notes": "; ".join(filter(None, [f"Thời lượng {meta['length_s']} giây" if meta.get("length_s") else None,
+                                         f"Thẻ: {', '.join(meta['tags'][:15])}" if meta.get("tags") else None,
+                                         "Chủ kênh tắt bình luận" if log.get("comments_disabled") else None])) or None,
+    }
+    raw = _load(bundle, "comments.json", [])
+    index = {c["yt_comment_id"]: i for i, c in enumerate(raw)}
+    comments = []
+    for c in raw:
+        cid = c["yt_comment_id"]
+        refs = [{"cscroll": n, "position": s["comments"].index(cid) + 1}
+                for n, s in enumerate(scrolls, 1) if cid in (s.get("comments") or [])]
+        parent = c.get("parent_yt_comment_id")
+        comments.append({
+            "record_type": "comment", "depth": 2 if parent else 1, "yt_comment_id": cid,
+            "parent_comment_id": f"@{index[parent]}" if parent in index else None,
+            "url": f"{meta['url']}&lc={cid}", "author_name": c.get("author") or "(không rõ)", "author_url": c.get("author_href"),
+            "author_kind": "person", "author_badge": "Chủ kênh" if c.get("by_owner") else None,
+            "posted_at_raw": c.get("time_text") or "", "posted_at": relative(c.get("time_text"), captured),
+            "posted_at_precision": "relative_estimate" if c.get("time_text") else "unknown",
+            "text": c.get("text") or "", "attachments": [], "reactions": _num(c.get("likes") or "0") or 0,
+            "scroll_refs": refs, "captured_at": captured,
+            "notes": "Bình luận được ghim" if c.get("pinned") else None,
+        })
+    classify = {"source": {"channel": source["author_name"], "posted_at": source["posted_at"], "text": source["text"]},
+                "comments": [{"yt_comment_id": c["yt_comment_id"], "depth": c["depth"], "author": c["author_name"],
+                              "text": c["text"], "likes": c["reactions"]} for c in comments]}
+    return {"source": source, "comments": comments, "classify": classify}
+
+
+def apply_video(project: Project, bundle: Path, cls: dict, run_id: str) -> dict:
+    config = project.load_config()
+    d = video_drafts(Path(bundle))
+    src = d["source"]
+    _merge(src, cls.get("source") or {}, "video")
+    src["keywords_matched"], _ = match_keywords(src["text"], config)
+    src.update({k: cls[k] for k in ("supersedes", "supersedes_reason") if cls.get(k)})
+    for c in d["comments"]:
+        _merge(c, (cls.get("comments") or {}).get(c["yt_comment_id"]) or {}, f"bình luận {c['yt_comment_id']}")
+    [res] = add_records(project, [src], run_id, config)
+    out = {"source": res, "comments": []}
+    if res["status"] != "added":
+        return out
+    scroll_paths = [p for p in res["evidence_paths"] if "_cscroll_" in p]
+    batch = []
+    for c in d["comments"]:
+        c["source_id"] = res["id"]
+        c["scroll_refs"] = [{"file": scroll_paths[r["cscroll"] - 1], "position": r["position"]}
+                            for r in c["scroll_refs"] if r["cscroll"] <= len(scroll_paths)]
+        c["keywords_matched"], _ = match_keywords(c["text"], config, src["text"])
+        batch.append({k: v for k, v in c.items() if v is not None or k == "parent_comment_id"})
+    out["comments"] = add_records(project, batch, run_id, config) if batch else []
+    return out
+
+
 def main(argv=None) -> int:
     setup_stdout()
     ap = argparse.ArgumentParser()

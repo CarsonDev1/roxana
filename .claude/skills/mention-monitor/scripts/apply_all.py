@@ -1,6 +1,6 @@
 """Write every classified bundle (cls.json present, applied.json absent) into the store.
 
-python apply_all.py --run RUN [--web <run>/web/bundles] [--fb <run>/bundles --containers <map.json>]
+python apply_all.py --run RUN [--web <run>/web/bundles] [--yt <run>/youtube/bundles] [--fb <run>/bundles --containers <map.json>]
 python apply_all.py --run RUN --pending   → lists bundles still waiting for a cls.json (to hand to classifiers)
 
 Web bundles → apply_article; Facebook bundles → apply_bundle (container id/name looked up by group id in the
@@ -15,13 +15,18 @@ import re
 import sys
 from pathlib import Path
 
-from bundle_to_records import apply_article, apply_bundle
+from bundle_to_records import apply_article, apply_bundle, apply_video
 from common import Project, setup_stdout
 
 
 def web_ready(d: Path) -> bool:
     m = d / "meta.json"
     return m.exists() and json.loads(m.read_text(encoding="utf-8")).get("relevant") and (d / "article.txt").exists()
+
+
+def yt_ready(d: Path) -> bool:
+    m = d / "meta.json"
+    return m.exists() and json.loads(m.read_text(encoding="utf-8")).get("relevant") and (d / "log.json").exists()
 
 
 def fb_ready(d: Path) -> bool:
@@ -45,6 +50,7 @@ def main(argv=None) -> int:
     ap.add_argument("--run", required=True)
     ap.add_argument("--web")
     ap.add_argument("--fb")
+    ap.add_argument("--yt", help="<run>/youtube/bundles")
     ap.add_argument("--containers")
     ap.add_argument("--pending", action="store_true")
     ap.add_argument("--events", action="store_true", help="ghi luôn các mốc trong cls.json (mặc định: không — gom lại thành dòng thời gian chuẩn trước)")
@@ -54,6 +60,8 @@ def main(argv=None) -> int:
     todo = []
     if args.web:
         todo += [("web", d) for d in sorted(Path(args.web).iterdir()) if d.is_dir() and web_ready(d)]
+    if args.yt:
+        todo += [("yt", d) for d in sorted(Path(args.yt).iterdir()) if d.is_dir() and yt_ready(d)]
     if args.fb:
         todo += [("fb", d) for d in sorted(Path(args.fb).iterdir()) if d.is_dir() and fb_ready(d)]
     if args.pending:
@@ -75,6 +83,8 @@ def main(argv=None) -> int:
         try:
             if kind == "web":
                 res = {"source": apply_article(project, d, cls, args.run)}
+            elif kind == "yt":
+                res = apply_video(project, d, cls, args.run)
             else:
                 feed = json.loads((d / "feed.json").read_text(encoding="utf-8"))
                 gid = (re.search(r"/groups/([^/]+)/", feed["permalink"]) or [None, None])[1]

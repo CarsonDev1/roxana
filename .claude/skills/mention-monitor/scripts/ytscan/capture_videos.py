@@ -221,6 +221,11 @@ def main(argv=None) -> int:
                 for s in steps:
                     s["shows"] = s["shows"].replace("{n}", str(len(steps)))
                 cinfo = load_comments(page, args.max_comments)
+                # bình luận dài bị rút gọn ("Đọc thêm") → mở hết để ảnh chụp có đủ chữ
+                page.evaluate("""() => document.querySelectorAll('ytd-comment-view-model #more, ytd-comment-renderer #more, '
+                    + 'ytd-comment-view-model ytd-expander tp-yt-paper-button#more').forEach(b => {
+                      if (b.offsetParent !== null && !b.hidden) b.click(); })""")
+                page.wait_for_timeout(1000)
                 comments = page.evaluate(READ)
                 # ảnh cuộn cột bình luận: mỗi ảnh một khung màn hình, ghi lại bình luận nào nằm trong ảnh
                 box = page.evaluate("(() => { const r = document.querySelector('#comments').getBoundingClientRect(); "
