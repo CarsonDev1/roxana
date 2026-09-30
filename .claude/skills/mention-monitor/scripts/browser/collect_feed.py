@@ -64,6 +64,12 @@ def blocked(page) -> str | None:
     return next((s for s in BLOCK_SIGNS if s.lower() in body.lower()), None)
 
 
+def _sig(info: dict) -> tuple | None:
+    """Nhận ra bài đã ghi ở lượt trước (nối tiếp) mà không cần rê chuột lấy link: tác giả + đầu nội dung."""
+    msg = (info.get("message") or "").strip()
+    return (info.get("author"), msg[:120]) if len(msg) >= 20 else None
+
+
 def main(argv=None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
@@ -78,9 +84,14 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    done = set()
+    done, sigs = set(), set()
     if out.exists():
-        done = {json.loads(l)["permalink"] for l in out.read_text(encoding="utf-8").splitlines() if l.strip()}
+        for l in out.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                r = json.loads(l)
+                done.add(r["permalink"])
+                if (sg := _sig(r)):
+                    sigs.add(sg)
     known = set(Path(args.known).read_text(encoding="utf-8").split()) if args.known else set()
     started = time.strftime("%Y-%m-%dT%H:%M:%S+07:00")
 
@@ -96,88 +107,98 @@ def main(argv=None) -> int:
         if (why := blocked(p)):
             request_stop(f"collect_feed {args.url}: {why}")
             print(json.dumps({"status": "blocked", "reason": why}, ensure_ascii=False)); close_window(); return 3
-        meta = {"url": args.url, "started_at": started, **p.evaluate(HEADER)}
+        meta_f = out.with_suffix(".meta.json")
+        prev = json.loads(meta_f.read_text(encoding="utf-8")) if meta_f.exists() else None
+        passes = (prev.pop("passes", []) + [prev]) if prev else []
+        meta = {"url": args.url, "started_at": started, **p.evaluate(HEADER), **({"passes": passes} if passes else {})}
         (out.with_suffix(".meta.json")).write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
 
         sel = args.items or ("div[aria-posinset]" if p.locator("div[aria-posinset]").count()
                              else '[role="feed"] > div, [role="main"] div[role="article"]')
-        processed, stall, new, known_run, last_count = set(), 0, 0, 0, 0
+        processed, stall, new, known_run, last_count, errors = set(), 0, 0, 0, 0, 0
         reached_end = False
         with open(out, "a", encoding="utf-8") as f:
             while True:
                 arts = p.locator(sel)
                 n = arts.count()
                 for i in range(n):
-                    art = arts.nth(i)
-                    pos = art.get_attribute("aria-posinset") or str(i + 1)
-                    if not art.inner_text(timeout=2000).strip():
-                        continue  # khung trống / đang tải
-                    if pos in processed:
-                        continue
-                    processed.add(pos)
                     try:
-                        art.scroll_into_view_if_needed(timeout=5000)
-                    except Exception:
-                        continue
-                    p.wait_for_timeout(random.randint(500, 1100))
-                    permalink, tooltip = None, None
-                    links = art.locator("a[href]")
-                    for j in range(min(links.count(), 60)):
-                        a = links.nth(j)
+                        art = arts.nth(i)
+                        pos = art.get_attribute("aria-posinset") or str(i + 1)
+                        if not art.inner_text(timeout=2000).strip():
+                            continue  # khung trống / đang tải
+                        if pos in processed:
+                            continue
+                        processed.add(pos)
                         try:
-                            if not a.is_visible() or a.inner_text().strip():
-                                continue
-                            href = a.get_attribute("href") or ""
-                            # Link mốc thời gian: chưa rê chuột thì là "?__cft__…", "#…" hoặc trang nhóm/trang
-                            if not (href.startswith("?") or href.startswith("#") or TIME_LINK_RE.search(href)):
-                                continue
-                            a.hover(timeout=3000)
-                            p.wait_for_timeout(1200)
-                            href = a.get_attribute("href") or ""
-                            if PERMA_RE.search(href):
-                                permalink = href.split("?__cft__")[0].split("&__cft__")[0]
-                                tooltip = p.evaluate("[...document.querySelectorAll('[role=tooltip]')].map(e=>e.innerText.trim()).filter(Boolean).pop() || null")
-                                break
+                            art.scroll_into_view_if_needed(timeout=5000)
                         except Exception:
                             continue
-                    p.mouse.move(5, 5)
-                    if not permalink:  # dự phòng: mã bài nằm trong link bình luận xem trước hoặc link ảnh (set=gm./pcb.)
-                        hrefs = art.evaluate("el => [...el.querySelectorAll('a[href]')].map(a => a.href)")
-                        gid = re.search(r"/groups/([^/?#]+)", args.url)
-                        for h in hrefs:
-                            m = re.search(r"(https://www\.facebook\.com/groups/[^/]+/(?:posts|permalink)/\d+)/?\?(?:comment_id|reply)", h)
-                            if m:
-                                permalink = m.group(1) + "/"
-                                break
-                        if not permalink and gid:
-                            for h in hrefs:
-                                m = re.search(r"set=(?:gm|pcb)\.(\d+)", h)
-                                if m:
-                                    permalink = f"https://www.facebook.com/groups/{gid.group(1)}/posts/{m.group(1)}/"
+                        p.wait_for_timeout(random.randint(500, 1100))
+                        if (sg := _sig(art.evaluate(MESSAGE))) and sg in sigs:
+                            continue  # đã ghi ở lượt trước
+                        permalink, tooltip = None, None
+                        links = art.locator("a[href]")
+                        for j in range(min(links.count(), 60)):
+                            a = links.nth(j)
+                            try:
+                                if not a.is_visible() or a.inner_text().strip():
+                                    continue
+                                href = a.get_attribute("href") or ""
+                                # Link mốc thời gian: chưa rê chuột thì là "?__cft__…", "#…" hoặc trang nhóm/trang
+                                if not (href.startswith("?") or href.startswith("#") or TIME_LINK_RE.search(href)):
+                                    continue
+                                a.hover(timeout=3000)
+                                p.wait_for_timeout(1200)
+                                href = a.get_attribute("href") or ""
+                                if PERMA_RE.search(href):
+                                    permalink = href.split("?__cft__")[0].split("&__cft__")[0]
+                                    tooltip = p.evaluate("[...document.querySelectorAll('[role=tooltip]')].map(e=>e.innerText.trim()).filter(Boolean).pop() || null")
                                     break
-                    info = art.evaluate(MESSAGE)
-                    if not permalink and args.media_fallback:
-                        media = art.evaluate(r"el => [...el.querySelectorAll('a[href]')].map(a => a.href).find(h => /\/(reel|videos)\/|\/watch\/?\?v=|\/photo\/?\?fbid=/.test(h)) || null")
-                        if media:
-                            permalink = media.split("&__cft__")[0].split("?__cft__")[0]
-                    if not permalink:
-                        permalink = f"{args.url}#pos{pos}"  # không lấy được link riêng — ghi lại để xử lý tay
-                    if permalink in done:
-                        continue
-                    if permalink in known:
-                        known_run += 1
-                        if args.stop_known and known_run >= args.stop_known:
+                            except Exception:
+                                continue
+                        p.mouse.move(5, 5)
+                        if not permalink:  # dự phòng: mã bài nằm trong link bình luận xem trước hoặc link ảnh (set=gm./pcb.)
+                            hrefs = art.evaluate("el => [...el.querySelectorAll('a[href]')].map(a => a.href)")
+                            gid = re.search(r"/groups/([^/?#]+)", args.url)
+                            for h in hrefs:
+                                m = re.search(r"(https://www\.facebook\.com/groups/[^/]+/(?:posts|permalink)/\d+)/?\?(?:comment_id|reply)", h)
+                                if m:
+                                    permalink = m.group(1) + "/"
+                                    break
+                            if not permalink and gid:
+                                for h in hrefs:
+                                    m = re.search(r"set=(?:gm|pcb)\.(\d+)", h)
+                                    if m:
+                                        permalink = f"https://www.facebook.com/groups/{gid.group(1)}/posts/{m.group(1)}/"
+                                        break
+                        info = art.evaluate(MESSAGE)
+                        if not permalink and args.media_fallback:
+                            media = art.evaluate(r"el => [...el.querySelectorAll('a[href]')].map(a => a.href).find(h => /\/(reel|videos)\/|\/watch\/?\?v=|\/photo\/?\?fbid=/.test(h)) || null")
+                            if media:
+                                permalink = media.split("&__cft__")[0].split("?__cft__")[0]
+                        if not permalink:
+                            permalink = f"{args.url}#pos{pos}"  # không lấy được link riêng — ghi lại để xử lý tay
+                        if permalink in done:
+                            continue
+                        if permalink in known:
+                            known_run += 1
+                            if args.stop_known and known_run >= args.stop_known:
+                                break
+                            continue
+                        known_run = 0
+                        done.add(permalink)
+                        f.write(json.dumps({"pos": int(pos), "permalink": permalink, "tooltip": tooltip,
+                                            "seen_at": time.strftime("%Y-%m-%dT%H:%M:%S+07:00"), **info},
+                                           ensure_ascii=False) + "\n")
+                        f.flush()
+                        new += 1
+                        if args.max and new >= args.max:
                             break
+                    except Exception as exc:  # bài bị Facebook gỡ khỏi trang / hết thời gian chờ → bỏ qua bài này
+                        errors += 1
+                        print(json.dumps({"skip_error": f"{type(exc).__name__}: {str(exc)[:160]}"}, ensure_ascii=False), file=sys.stderr)
                         continue
-                    known_run = 0
-                    done.add(permalink)
-                    f.write(json.dumps({"pos": int(pos), "permalink": permalink, "tooltip": tooltip,
-                                        "seen_at": time.strftime("%Y-%m-%dT%H:%M:%S+07:00"), **info},
-                                       ensure_ascii=False) + "\n")
-                    f.flush()
-                    new += 1
-                    if args.max and new >= args.max:
-                        break
                 if (args.max and new >= args.max) or (args.stop_known and known_run >= args.stop_known):
                     break
                 if (why := blocked(p)):
@@ -196,7 +217,7 @@ def main(argv=None) -> int:
                     reached_end = True
                     break
         meta.update(ended_at=time.strftime("%Y-%m-%dT%H:%M:%S+07:00"), new=new, reached_end=reached_end,
-                    posts_seen=len(processed))
+                    posts_seen=len(processed), item_errors=errors)
         out.with_suffix(".meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
         print(json.dumps({"status": "ok", **meta}, ensure_ascii=False))
         close_window()
