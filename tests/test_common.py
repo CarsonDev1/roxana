@@ -183,3 +183,12 @@ def test_search_log_and_exclusion_dedupe_keys():
     assert dedupe_key(dict(log, filters={"year": 2021})) != dedupe_key(log)
     exc = {"record_type": "exclusion", "url": "https://Example.com/a?utm_source=x"}
     assert dedupe_key(exc) == dedupe_key({"record_type": "exclusion", "url": "https://example.com/a"})
+
+
+def test_person_names_need_case_context_not_generic_real_estate_words():
+    cfg = {"keyword_groups": [{"id": "lien", "label": "Bà Liên", "terms": ["Phạm Ngọc Liên"], "requires_context": True},
+                              {"id": "naviland", "label": "Naviland", "terms": ["Naviland"]}],
+           "context_terms": ["căn hộ", "chủ đầu tư", "Naviland"], "case_context_terms": ["Naviland", "Roxana"]}
+    assert match_keywords("Ông Phạm Ngọc Liên, Giám đốc Văn phòng đăng ký đất đai, nói về sổ hồng căn hộ", cfg) == ([], ["lien"])
+    assert match_keywords("Bà Phạm Ngọc Liên, TGĐ Naviland", cfg)[0] == ["lien", "naviland"]
+    assert match_keywords("Bà Phạm Ngọc Liên phát biểu", cfg, context_text="Nhóm cư dân Roxana")[0] == ["lien"]

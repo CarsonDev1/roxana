@@ -249,9 +249,11 @@ def match_keywords(text: str, config: dict, context_text: str = "") -> tuple[lis
 
     A group matches on any of its `terms`. `weak_terms` (a bare name that is also a person's or place's name) count
     only with context: a context term that is not one of the group's own terms, or another group's match.
-    `requires_context` groups need context for every term."""
+    `requires_context` groups need case context for every term (`case_context_terms`, else `context_terms`)."""
     body, ctx = _Haystack(text), _Haystack(f"{text} {context_text}")
     ctx_found = [t for t in config.get("context_terms", []) if ctx.has(t)]
+    # tên người/công ty (requires_context) cần ngữ cảnh RIÊNG của vụ việc, không chỉ từ chung về nhà đất
+    case_found = [t for t in config.get("case_context_terms", config.get("context_terms", [])) if ctx.has(t)]
     groups = config.get("keyword_groups", [])
     strong = {g["id"] for g in groups if any(body.has(t) for t in g["terms"])}
     weak = {g["id"] for g in groups if g["id"] not in strong and any(body.has(t) for t in g.get("weak_terms", []))}
@@ -265,7 +267,7 @@ def match_keywords(text: str, config: dict, context_text: str = "") -> tuple[lis
         if g["id"] in weak:
             ok = outside
         elif g.get("requires_context"):
-            ok = bool(ctx_found) or bool(strong - {g["id"]})
+            ok = any(fold(t) not in own for t in case_found) or bool((strong | weak) - {g["id"]})
         else:
             ok = True
         (matched if ok else lacking).append(g["id"])
