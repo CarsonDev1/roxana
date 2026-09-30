@@ -17,8 +17,8 @@ from openpyxl import Workbook
 from common import Project, now_iso, parse_iso, read_records, setup_stdout
 from schema import DESCRIPTIONS, LABELS, label
 from view import View, build_view, needs_join
-from xlsx_helpers import (BOLD, TITLE_FONT, YELLOW_FILL, Column, Formula, Img, Internal, Link, col_letter,
-                          countif, countif_literal, write_cell, write_table)
+from xlsx_helpers import (BOLD, BORDER, SECTION_FILL, TITLE_FONT, YELLOW_FILL, Column, Formula, Img, Internal,
+                          Link, col_letter, countif, countif_literal, setup_print, write_cell, write_table)
 
 S_OVERVIEW = "Tổng quan"
 S_TIMELINE = "Dòng thời gian"
@@ -33,6 +33,21 @@ S_EXCLUDED = "Đã loại trừ"
 S_LEGEND = "Chú thích"
 SHEET_ORDER = [S_OVERVIEW, S_TIMELINE, S_SOURCES, S_COMMENTS, S_PEOPLE, S_CONTAINERS, S_EVIDENCE, S_LOG,
                S_CHANGES, S_EXCLUDED, S_LEGEND]
+SHEET_DESCRIPTIONS = {
+    S_TIMELINE: "Các mốc chính của vụ việc, kèm nguồn và độ tin cậy",
+    S_SOURCES: "Mỗi dòng một bài viết / bài báo: nội dung nguyên văn, ảnh chụp, người đăng, phân loại",
+    S_COMMENTS: "Mỗi dòng một bình luận hoặc trả lời, theo thứ tự cây bình luận của từng bài",
+    S_PEOPLE: "Các bên liên quan và người đăng / bình luận, số bài và số lần được nhắc",
+    S_CONTAINERS: "Nhóm và trang đã biết; dòng tô vàng là nhóm kín cần xin vào",
+    S_EVIDENCE: "Bài và bình luận mức quan trọng Cao, ảnh lớn — dùng làm danh mục khi lập vi bằng",
+    S_LOG: "Mọi lần tìm kiếm / cuộn feed, kèm giới hạn gặp phải",
+    S_CHANGES: "Bài bị sửa, bị xoá, hoặc số tương tác tăng khi kiểm tra lại",
+    S_EXCLUDED: "Kết quả trùng tên đã loại (không ghi tên người đăng)",
+    S_LEGEND: "Ý nghĩa các cột, cách phân loại, cách kiểm tra mã SHA-256",
+}
+TAB_COLORS = {S_OVERVIEW: "548235", S_TIMELINE: "548235", S_EVIDENCE: "548235",
+              S_SOURCES: "2F5597", S_COMMENTS: "2F5597", S_PEOPLE: "2F5597", S_CONTAINERS: "2F5597",
+              S_LOG: "7F7F7F", S_CHANGES: "7F7F7F", S_EXCLUDED: "7F7F7F", S_LEGEND: "BF8F00"}
 NO_IMAGE = "Từ file cũ — chưa có ảnh"
 MONTH_UNKNOWN = "Không rõ"
 PLATFORMS = ["facebook", "web", "youtube", "tiktok"]
@@ -504,6 +519,7 @@ def write_overview(ws, ctx: Ctx, src_cols, cmt_cols, ctr_cols) -> None:
             ws.cell(row, 1).font = font
         if value is not None:
             write_cell(ws, row, 2, value)
+            ws.cell(row, 2).font = BOLD
         if note:
             write_cell(ws, row, 3, note)
         row += 1
@@ -512,6 +528,9 @@ def write_overview(ws, ctx: Ctx, src_cols, cmt_cols, ctr_cols) -> None:
         nonlocal row
         row += 1
         put(title, font=BOLD)
+        for c in (1, 2, 3):
+            ws.cell(row - 1, c).fill = SECTION_FILL
+            ws.cell(row - 1, c).border = BORDER
 
     def both(src_header, cmt_header, criterion):
         return Formula("=" + countif(S_SOURCES, col_letter(src_cols, src_header), criterion) + "+"
@@ -522,6 +541,10 @@ def write_overview(ws, ctx: Ctx, src_cols, cmt_cols, ctr_cols) -> None:
     runs = sorted({r["run_id"] for r in view.sources + view.search_logs
                    if r.get("run_id") and r.get("origin") != "legacy"})
     put("Lần quét gần nhất", runs[-1] if runs else "Chưa quét")
+
+    section("Mục lục — bấm tên sheet để mở")
+    for name in SHEET_ORDER[1:]:
+        put(Internal(name, 1, name), None, SHEET_DESCRIPTIONS[name])
 
     section("Tổng số")
     put("Bài viết & nguồn", Formula(f"=COUNTA('{S_SOURCES}'!A:A)-1"))
@@ -597,6 +620,15 @@ def write_legend(ws, ctx: Ctx) -> None:
     for r, (a, b) in enumerate(rows, 1):
         write_cell(ws, r, 1, a)
         write_cell(ws, r, 2, b)
+        if r > 1:
+            for c in (1, 2):
+                ws.cell(r, c).border = BORDER
+            if b:
+                ws.cell(r, 1).font = BOLD
+            else:
+                for c in (1, 2):
+                    ws.cell(r, c).fill = SECTION_FILL
+                ws.cell(r, 1).font = BOLD
     ws.cell(1, 1).font = TITLE_FONT
 
 
@@ -607,6 +639,10 @@ def write_summary_sheets(wb, ctx: Ctx, src_cols, cmt_cols, ctr_cols) -> None:
     write_table(wb[S_EVIDENCE], evidence_columns(ctx), evidence_items(ctx), thumbs)
     write_overview(wb[S_OVERVIEW], ctx, src_cols, cmt_cols, ctr_cols)
     write_legend(wb[S_LEGEND], ctx)
+    for name in (S_OVERVIEW, S_LEGEND):
+        setup_print(wb[name])
+    for name, color in TAB_COLORS.items():
+        wb[name].sheet_properties.tabColor = color
 
 
 def build(project: Project) -> dict:
