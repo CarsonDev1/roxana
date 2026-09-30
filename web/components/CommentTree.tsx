@@ -1,6 +1,6 @@
-import { fileUrl } from "@/lib/files";
 import { displayText, fmtTime } from "@/lib/text";
 import type { Comment } from "@/lib/types";
+import { ImageLink } from "./ImageViewer";
 import { Thumb } from "./Thumb";
 import { Badge, Ext, ImportanceBadge, StatusBadge, ToneBadge } from "./ui";
 
@@ -37,9 +37,9 @@ function CommentItem({ c, L, partyLabel }: { c: Comment; L: L; partyLabel: (id: 
       {c.importance_reason && <p className="mt-1 text-xs text-ink-2">Lý do: {c.importance_reason}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
         {refs.map((r) => (
-          <a key={r.file + r.position} href={fileUrl(r.file)!} target="_blank" rel="noopener" className="hover:underline">
+          <ImageLink key={r.file + r.position} image={{ file: r.file, title: `Ảnh cuộn bình luận — ${c.author_name} ở vị trí ${r.position}` }}>
             Ảnh cuộn {r.file.split("/").pop()} · vị trí {r.position}
-          </a>
+          </ImageLink>
         ))}
         {c.url && <Ext href={c.url}>Link bình luận</Ext>}
       </div>

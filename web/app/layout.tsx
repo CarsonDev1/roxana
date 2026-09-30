@@ -1,7 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
+
+// Inter có đủ dấu tiếng Việt; next/font tải lúc build và phục vụ cùng web (không gọi Google khi mở trang).
+const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-inter", display: "swap" });
+
+export const viewport: Viewport = { colorScheme: "light" };
 
 export const metadata: Metadata = {
   title: { default: "Theo dõi vụ việc Roxana Plaza", template: "%s · Roxana Plaza" },
@@ -11,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="vi" className="h-full antialiased">
+    <html lang="vi" className={`${inter.variable} h-full antialiased`} style={{ colorScheme: "light" }}>
       <body className="flex min-h-full flex-col">
         <a href="#noi-dung" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2">
           Bỏ qua tới nội dung

@@ -28,7 +28,7 @@ def main(argv=None) -> int:
     failures = []
     with sync_playwright() as pw:
         browser = pw.chromium.launch(channel="chrome", headless=True)
-        for dark in (False, True):
+        for dark in (False,):  # web chỉ có chế độ sáng
             page = browser.new_page(viewport={"width": 1366, "height": 900}, color_scheme="dark" if dark else "light")
             errors = []
             page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
@@ -45,6 +45,19 @@ def main(argv=None) -> int:
                     page.screenshot(path=str(Path(args.shots) / f"{name}.png"), full_page=True)
             page.close()
         page = browser.new_page()
+        with_images = [s["id"] for s in data["sources"] if s.get("main_image")]
+        if with_images:  # bấm ảnh → khung xem ngay trên trang, không mở tab mới; Esc đóng
+            page.goto(f"{args.base}/bai-viet/{with_images[0]}", wait_until="networkidle")
+            tabs = len(browser.contexts[0].pages) if browser.contexts else 1
+            page.get_by_role("button", name="Xem ảnh lớn").first.click()
+            dialog = page.locator("dialog[open]")
+            ok = dialog.count() == 1 and dialog.locator("img").evaluate("i => i.complete && i.naturalWidth > 0")
+            page.keyboard.press("Escape")
+            if not ok or page.locator("dialog[open]").count() or len(browser.contexts[0].pages) != tabs:
+                failures.append({"path": "image viewer", "error": "khung xem ảnh không mở/đóng đúng"})
+            font = page.evaluate("getComputedStyle(document.body).fontFamily")
+            if "inter" not in font.lower():
+                failures.append({"path": "font", "error": font})
         for sid in superseded:  # bản từ file cũ đã bị thay → chuyển sang bản quét
             page.goto(f"{args.base}/bai-viet/{sid}", wait_until="networkidle")
             if f"/bai-viet/{sid}" in page.url:

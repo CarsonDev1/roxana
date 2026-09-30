@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Bộ màu theo vai trò (dataviz reference palette). Sáng/tối là hai bộ bước riêng, không tự đảo. */
+/* Bộ màu theo vai trò (dataviz reference palette) — chỉ chế độ sáng (yêu cầu người dùng). */
 :root {
   color-scheme: light;
   --page: #f9f9f7;
@@ -26,29 +26,6 @@
   --good-wash: #e2f5e2;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-2: #232321;
-    --ink: #ffffff;
-    --ink-2: #c3c2b7;
-    --muted: #9b9990;
-    --line: #2c2c2a;
-    --axis: #383835;
-    --ring: rgba(255, 255, 255, 0.1);
-    --accent: #3987e5;
-    --accent-ink: #86b6ef;
-    --accent-wash: #16304f;
-    --critical-wash: #3a1b1b;
-    --serious-wash: #3a2419;
-    --warning-wash: #3a2f12;
-    --good-ink: #0ca30c;
-    --good-wash: #13301a;
-  }
-}
-
 @theme inline {
   --color-page: var(--page);
   --color-surface: var(--surface);
@@ -70,7 +47,7 @@
   --color-good: var(--good);
   --color-good-ink: var(--good-ink);
   --color-good-wash: var(--good-wash);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 body {
