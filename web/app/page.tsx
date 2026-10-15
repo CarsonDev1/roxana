@@ -8,6 +8,8 @@ import { excerpt, fmtMonth, fmtTime } from "@/lib/text";
 import { SCHEMA_VERSION } from "@/lib/types";
 
 const TONE_ORDER = ["tich_cuc", "trung_lap", "tieu_cuc", "gay_gat"];
+const RECORD_TYPE_LABEL: Record<string, string> = { source: "bài/nguồn", search_log: "log tìm kiếm", event: "sự kiện",
+  exclusion: "loại trừ", recheck: "kiểm tra lại", comment: "bình luận", container: "nhóm/trang" };
 const IMPORTANCE_ORDER = ["cao", "trung_binh", "thap"];
 
 export default async function Overview() {
@@ -27,13 +29,18 @@ export default async function Overview() {
         subtitle={<>Cập nhật {fmtTime(data.generated_at)} · Lần quét gần nhất: {st.latest_run ?? "chưa quét"}
           {st.latest_run && <> · mới trong lần này: {st.new_in_latest_run.sources} bài, {st.new_in_latest_run.comments} bình luận</>}</>} />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
         <StatTile label="Bài viết & nguồn" value={st.totals.sources} href="/bai-viet"
           hint={Object.entries(st.by_platform).map(([k, v]) => `${label(data, "platform", k)} ${v}`).join(" · ")} />
         <StatTile label="Bình luận" value={st.totals.comments} href="/binh-luan" />
         <StatTile label="Mức quan trọng cao" value={st.totals.high} href="/bang-chung" tone="critical" hint="bài + bình luận" />
         <StatTile label="Mốc sự kiện" value={st.totals.events} href="/dong-thoi-gian" />
         <StatTile label="Nhóm & trang" value={st.totals.containers} href="/nhom" />
+        {st.totals.records != null && (
+          <StatTile label="Tổng bản ghi trong kho" value={st.totals.records}
+            hint={Object.entries(st.records_by_type ?? {}).sort((a, b) => b[1] - a[1])
+              .map(([k, v]) => `${RECORD_TYPE_LABEL[k] ?? k} ${v}`).join(" · ")} />
+        )}
         <StatTile label="Nhóm kín cần xin vào" value={st.totals.need_join} href="/nhom" tone="warning" />
       </div>
 

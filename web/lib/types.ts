@@ -86,7 +86,8 @@ export type EvidenceItem = { id: string; type: "source" | "comment"; source_id: 
 
 export type Stats = {
   totals: { sources: number; comments: number; containers: number; need_join: number; exclusions: number;
-    high: number; events: number };
+    high: number; events: number; records?: number };
+  records_by_type?: Record<string, number>;
   by_platform: Record<string, number>; by_tone: Record<string, number>; by_importance: Record<string, number>;
   by_month: { month: string; count: number }[]; by_party: Record<string, number>;
   latest_run: string | null; runs: string[]; new_in_latest_run: { sources: number; comments: number };

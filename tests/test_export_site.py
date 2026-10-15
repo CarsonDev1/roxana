@@ -51,8 +51,10 @@ def test_stats_match_view(populated):
     project, *_ = populated
     _, data = _data(project)
     st = data["stats"]
-    assert st["totals"] == {"sources": 2, "comments": 3, "containers": 1, "need_join": 1, "exclusions": 1,
-                            "high": 2, "events": 1}
+    totals = dict(st["totals"])
+    assert totals.pop("records") == sum(st["records_by_type"].values())  # every raw record, not only shown sources
+    assert totals == {"sources": 2, "comments": 3, "containers": 1, "need_join": 1, "exclusions": 1,
+                      "high": 2, "events": 1}
     assert st["by_platform"]["facebook"] == 2
     assert st["by_tone"]["gay_gat"] == 2 and st["by_importance"]["cao"] == 2
     months = {m["month"]: m["count"] for m in st["by_month"]}

@@ -1,6 +1,6 @@
 """Push the local store to its Supabase copy (one way: this machine → Supabase). Run after export_site.py.
 
-python sync_supabase.py [--dry-run]
+python sync_supabase.py [--dry-run] [--skip-dir screenshots ...]
 
 - records.jsonl → table `records` (new ids only; the store is append-only so existing rows never change)
 - every evidence image / thumbnail referenced by the store or data.json → Storage bucket `evidence`, same relative
@@ -82,6 +82,8 @@ def main(argv=None) -> int:
     setup_stdout()
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--skip-dir", action="append", default=[], metavar="DIR",
+                    help="do not upload files under this top-level folder (e.g. screenshots, to stay under the Free plan's 1 GB Storage)")
     args = ap.parse_args(argv)
     project = Project()
     root = project.root
@@ -109,7 +111,10 @@ def main(argv=None) -> int:
     new_recs = [r for r in records if r.get("id") and r["id"] not in synced_ids]
     todo_files = []
     missing = []
+    skip = tuple(d.strip("/\\") + "/" for d in args.skip_dir)
     for rel in sorted(files):
+        if skip and rel.startswith(skip):
+            continue
         p = root / rel
         if not p.is_file():
             missing.append(rel)

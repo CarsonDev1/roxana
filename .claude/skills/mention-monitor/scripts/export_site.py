@@ -34,6 +34,7 @@ def month_of(value, precision) -> str:
 class Exporter:
     def __init__(self, project: Project, config: dict, view: View):
         self.project, self.config, self.view = project, config, view
+        self.record_counts: Counter = Counter()  # every raw record in the store, by record_type
         self.warnings = list(view.warnings)
 
     # ---- images -------------------------------------------------------------------------------------------
@@ -172,7 +173,8 @@ class Exporter:
             "totals": {"sources": len(sources), "comments": len(comments), "containers": len(view.containers),
                        "need_join": sum(1 for c in view.containers if needs_join(c)),
                        "exclusions": len(view.exclusions), "high": sum(1 for x in items if x.get("importance") == "cao"),
-                       "events": len(view.events)},
+                       "events": len(view.events), "records": sum(self.record_counts.values())},
+            "records_by_type": dict(self.record_counts),
             "by_platform": dict(Counter(s.get("platform") for s in sources)),
             "by_tone": dict(Counter(x.get("tone") for x in items if x.get("tone"))),
             "by_importance": dict(Counter(x.get("importance") for x in items if x.get("importance"))),
@@ -233,6 +235,7 @@ def export(project: Project) -> dict:
     config = project.load_config()
     records, warnings = read_records(project.records_path)
     exporter = Exporter(project, config, build_view(records, warnings))
+    exporter.record_counts = Counter(r.get("record_type") for r in records)
     data = exporter.build()
     out = project.root / "output" / "site" / "data.json"
     out.parent.mkdir(parents=True, exist_ok=True)
