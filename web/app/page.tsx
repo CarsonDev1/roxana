@@ -29,20 +29,30 @@ export default async function Overview() {
         subtitle={<>Cập nhật {fmtTime(data.generated_at)} · Lần quét gần nhất: {st.latest_run ?? "chưa quét"}
           {st.latest_run && <> · mới trong lần này: {st.new_in_latest_run.sources} bài, {st.new_in_latest_run.comments} bình luận</>}</>} />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatTile label="Bài viết & nguồn" value={st.totals.sources} href="/bai-viet"
           hint={Object.entries(st.by_platform).map(([k, v]) => `${label(data, "platform", k)} ${v}`).join(" · ")} />
         <StatTile label="Bình luận" value={st.totals.comments} href="/binh-luan" />
         <StatTile label="Mức quan trọng cao" value={st.totals.high} href="/bang-chung" tone="critical" hint="bài + bình luận" />
         <StatTile label="Mốc sự kiện" value={st.totals.events} href="/dong-thoi-gian" />
         <StatTile label="Nhóm & trang" value={st.totals.containers} href="/nhom" />
-        {st.totals.records != null && (
-          <StatTile label="Tổng bản ghi trong kho" value={st.totals.records}
-            hint={Object.entries(st.records_by_type ?? {}).sort((a, b) => b[1] - a[1])
-              .map(([k, v]) => `${RECORD_TYPE_LABEL[k] ?? k} ${v}`).join(" · ")} />
-        )}
         <StatTile label="Nhóm kín cần xin vào" value={st.totals.need_join} href="/nhom" tone="warning" />
       </div>
+
+      {st.totals.records != null && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-sm">
+          <p className="text-ink-2">
+            Tổng bản ghi trong kho <span className="ml-1 text-lg font-semibold text-ink">{st.totals.records.toLocaleString("vi-VN")}</span>
+          </p>
+          <ul className="flex flex-wrap gap-1.5 text-xs text-muted">
+            {Object.entries(st.records_by_type ?? {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+              <li key={k} className="rounded-full bg-surface-2 px-2.5 py-1">
+                {RECORD_TYPE_LABEL[k] ?? k} <b className="font-semibold text-ink-2">{v.toLocaleString("vi-VN")}</b>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
