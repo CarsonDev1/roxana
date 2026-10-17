@@ -53,7 +53,7 @@ NO_IMAGE = "Chưa có ảnh"
 MONTH_UNKNOWN = "Không rõ"
 PLATFORMS = ["facebook", "web", "youtube", "tiktok"]
 METRIC_NAMES = {"reactions": "Thích", "comments": "Bình luận", "shares": "Chia sẻ", "views": "Lượt xem",
-                "reply_count": "Phản hồi"}
+                "reads": "Lượt đọc", "search_hits": "Lượt tìm kiếm", "reply_count": "Phản hồi"}
 ATTACHMENT_KINDS = {"image": "Ảnh", "video": "Video", "link": "Link", "document": "Tài liệu"}
 
 
@@ -276,6 +276,8 @@ def source_columns(ctx: Ctx) -> list[Column]:
                lambda s: Formula("=" + countif(S_COMMENTS, comments_col, countif_literal(s["id"])))),
         Column("Chia sẻ", 8, metric("shares")),
         Column("Lượt xem", 9, metric("views")),
+        Column("Lượt đọc", 9, metric("reads")),
+        Column("Lượt tìm kiếm", 11, metric("search_hits")),
         Column("Đếm lúc", 16, lambda s: fmt_time(s["current_metrics"].get("counted_at"))),
         *analysis_columns(ctx),
         Column("Link bài", 30, lambda s: url_link(s.get("url"))),

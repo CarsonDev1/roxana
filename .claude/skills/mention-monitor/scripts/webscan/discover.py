@@ -5,7 +5,8 @@ python discover.py <out_dir> [--from-year 2017] [--to-year 2026] [--sources news
 news: Google News RSS per term × year (after:/before:) — press articles; ~100 items per request, hence per year.
 web:  DuckDuckGo HTML results (up to 5 pages, following the page's own "next" form) — forums, blogs, other sites.
 Writes <out_dir>/candidates.jsonl (one line per unique link: url, title, source_name, published, snippet, query,
-engine) and <out_dir>/discover_log.jsonl (one line per request). Resumable. A captcha/anomaly page stops that
+engine), <out_dir>/discover_log.jsonl (one line per request) and <out_dir>/hits.jsonl (one line per link per request
+it appeared in — the article's "search hits"; candidates.jsonl keeps only the first). Resumable. A captcha/anomaly page stops that
 source (never bypassed).
 """
 from __future__ import annotations
@@ -97,7 +98,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    cand_f, log_f = out / "candidates.jsonl", out / "discover_log.jsonl"
+    cand_f, log_f, hits_f = out / "candidates.jsonl", out / "discover_log.jsonl", out / "hits.jsonl"
     seen = {json.loads(l)["url"] for l in cand_f.read_text(encoding="utf-8").splitlines() if l.strip()} if cand_f.exists() else set()
     done = {(d["engine"], d["query"], d.get("year")) for d in
             (json.loads(l) for l in log_f.read_text(encoding="utf-8").splitlines() if l.strip()) if not d.get("error")} \
@@ -111,7 +112,8 @@ def main(argv=None) -> int:
         if "web" in sources:
             jobs.append(("ddg", gid, q, None))
     blocked = set()
-    with open(cand_f, "a", encoding="utf-8") as cf, open(log_f, "a", encoding="utf-8") as lf:
+    with open(cand_f, "a", encoding="utf-8") as cf, open(log_f, "a", encoding="utf-8") as lf, \
+            open(hits_f, "a", encoding="utf-8") as hf:
         for engine, gid, q, year in jobs:
             if (engine, q, year) in done or engine in blocked:
                 continue
@@ -120,12 +122,16 @@ def main(argv=None) -> int:
             try:
                 res = google_news(q, year) if engine == "google_news" else ddg(q)
                 new = 0
-                for r in res:
+                for rank, r in enumerate(res, 1):
+                    if r["url"]:  # mỗi lần bài xuất hiện trong kết quả tìm (kể cả bài đã có) → "lượt tìm kiếm" của bài
+                        hf.write(json.dumps({"url": r["url"], "engine": engine, "query": q, "year": year, "rank": rank,
+                                             "at": entry["at"]}, ensure_ascii=False) + "\n")
                     if r["url"] and r["url"] not in seen:
                         seen.add(r["url"])
                         cf.write(json.dumps({**r, "query": q, "group": gid}, ensure_ascii=False) + "\n")
                         new += 1
                 cf.flush()
+                hf.flush()
                 entry.update(results=len(res), new=new)
             except Exception as exc:
                 entry.update(error=str(exc)[:300])

@@ -54,6 +54,7 @@ Bắt buộc: `record_type`, `platform`, `content_type`, `url`, `url_kind`, `aut
 }
 ```
 
+- `metrics` của bài web (`platform: "web"`): `views` (lượt xem), `reads` (lượt đọc) — số do trang hiển thị, `null` nếu không có; `search_hits` — số lần bài xuất hiện trong kết quả tìm của các lượt discover.
 - `shared_from`: `{"url", "author_name", "author_url", "text_excerpt"}` khi là bài chia sẻ.
 - `keywords_matched`: id trong `config.json → keyword_groups`. `entities_mentioned`: id trong `key_parties`.
 

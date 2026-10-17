@@ -99,6 +99,35 @@ EXTRACT = r"""
   const cutAt = tail ? tail.getBoundingClientRect().top : null;
   let cleanText = bodyText;
   if (tail) { const i = bodyText.indexOf(tail.innerText.trim(), Math.floor(bodyText.length * 0.3)); if (i > 0) cleanText = bodyText.slice(0, i).trim(); }
+  // Lượt xem / lượt đọc do chính trang hiển thị (báo, diễn đàn): JSON-LD interactionStatistic trước, rồi dòng ngắn kiểu
+  // "12.345 lượt xem", "Lượt đọc: 1,2K", "Views: 340" nằm quanh khối bài (không tính link, cột bên, tin liên quan)
+  const stat = {views: null, reads: null};
+  for (const s of (ld ? [].concat(ld.interactionStatistic || []) : [])) {
+    const t = String((s.interactionType && (s.interactionType['@type'] || s.interactionType)) || '');
+    if (s.userInteractionCount == null) continue;
+    if (/Read/i.test(t)) stat.reads = stat.reads || String(s.userInteractionCount);
+    else if (/Watch|View/i.test(t)) stat.views = stat.views || String(s.userInteractionCount);
+  }
+  const NUM = '(\\d{1,3}(?:[.,]\\d{3})+|\\d+[.,]\\d+\\s?(?:K|N|nghìn|triệu|M)|\\d+\\s?(?:K|N|nghìn|triệu|M)|\\d+)';
+  const STAT_RE = {
+    views: [new RegExp('^(?:lượt\\s*xem|views?)\\s*:?\\s*' + NUM + '$', 'i'), new RegExp('^xem\\s*:\\s*' + NUM + '$', 'i'),
+            new RegExp('^' + NUM + '\\s*(?:lượt\\s*xem|lần\\s*xem|views?)$', 'i')],
+    reads: [new RegExp('^(?:lượt\\s*đọc|reads?)\\s*:?\\s*' + NUM + '$', 'i'), new RegExp('^đọc\\s*:\\s*' + NUM + '$', 'i'),
+            new RegExp('^' + NUM + '\\s*(?:lượt\\s*đọc|lần\\s*đọc|reads?)$', 'i')],
+  };
+  const yMin = Math.min(r1.top, r2.top) + scrollY - 300, yMax = (cutAt ? cutAt + scrollY : r2.bottom + scrollY) + 400;
+  for (const e of document.querySelectorAll('span, div, li, p, small, em, i, b, strong, time, td, dd')) {
+    if (stat.views && stat.reads) break;
+    if (e.childElementCount > 2 || e.closest('a') || e.querySelector('a') || outside(e)) continue;
+    const t = (e.innerText || '').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 40) continue;
+    const y = e.getBoundingClientRect().top + scrollY;
+    if (y < yMin || y > yMax || !e.getClientRects().length) continue;
+    for (const k of ['views', 'reads']) {
+      if (stat[k]) continue;
+      for (const re of STAT_RE[k]) { const m = t.match(re); if (m) { stat[k] = m[1]; break; } }
+    }
+  }
   const author = (ld && (Array.isArray(ld.author) ? ld.author.map(a => a.name).join(', ') : ld.author && ld.author.name))
     || meta('meta[name="author"]') || meta('meta[property="article:author"]') || null;
   return {
@@ -107,6 +136,7 @@ EXTRACT = r"""
     site: meta('meta[property="og:site_name"]') || location.hostname,
     author, published: (ld && ld.datePublished) || meta('meta[property="article:published_time"]') || meta('meta[itemprop="datePublished"]') || meta('time[datetime]') && document.querySelector('time[datetime]').getAttribute('datetime'),
     modified: (ld && ld.dateModified) || meta('meta[property="article:modified_time"]'),
+    views_raw: stat.views, reads_raw: stat.reads,
     text: (h1 ? h1.innerText.trim() + '\n\n' : '') + cleanText, cut_tail: !!tail,
     region: {x: left, y: r1.top + scrollY - 8, width: right - left, height: (cutAt || r2.bottom) - r1.top + 16},
     body_is_page: body === document.body,

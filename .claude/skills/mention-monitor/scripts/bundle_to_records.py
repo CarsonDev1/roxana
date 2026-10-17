@@ -252,6 +252,29 @@ def _iso_any(value: str | None) -> tuple[str | None, bool]:
     return dt.astimezone(TZ).isoformat(timespec="seconds"), has_time
 
 
+def search_hits(bundle: Path) -> int | None:
+    """Số lần bài xuất hiện trong kết quả tìm của discover.py: mỗi (nguồn, câu tìm, năm) tính một lần.
+    Link ứng viên chưa có trong hits.jsonl (quét trước khi có tệp này, hoặc thêm tay) tính một lần. Không biết → None."""
+    web = Path(bundle).parent.parent
+    index_f, hits_f = web / "captured_index.json", web / "hits.jsonl"
+    if not index_f.exists():
+        return None
+    index = json.loads(index_f.read_text(encoding="utf-8"))
+    urls = {u for u, v in index.items() if isinstance(v, dict) and v.get("key") == Path(bundle).name}
+    if not urls:
+        return None
+    by_url: dict[str, set] = {}
+    if hits_f.exists():
+        for line in hits_f.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                h = json.loads(line)
+                by_url.setdefault(h["url"], set()).add((h["engine"], h["query"], h.get("year")))
+    found: set = set()
+    for u in urls:
+        found |= by_url.get(u) or {("candidate", u, None)}
+    return len(found)
+
+
 def article_draft(bundle: Path) -> dict:
     """Web article bundle (webscan/capture_articles.py) → source record without classification."""
     bundle = Path(bundle)
@@ -271,7 +294,10 @@ def article_draft(bundle: Path) -> dict:
         "posted_at_precision": precision, "text": (bundle / "article.txt").read_text(encoding="utf-8"),
         "attachments": [{"kind": "image", "description": a.get("alt") or "Ảnh văn bản trong bài", "transcribed_text": None,
                          "url": a.get("src")} for a in meta.get("attach_shots") or []],
-        "metrics": {}, "captured_at": meta.get("captured_at"),
+        # views/reads: số do chính trang hiển thị lúc chụp (không phải trang nào cũng có → None); search_hits: xem search_hits()
+        "metrics": {"views": _num(meta.get("views_raw")), "reads": _num(meta.get("reads_raw")),
+                    "search_hits": search_hits(bundle), "counted_at": meta.get("captured_at")},
+        "captured_at": meta.get("captured_at"),
         "evidence": [{"file": str(bundle / Path(s["file"]).name), "kind": "post",
                       "shows": f"Bài báo — tiêu đề và nội dung (phần {i}/{len(meta.get('shots') or [])})",
                       "captured_at": f"{date}T{s['at']}+07:00" if date and s.get("at") else None,

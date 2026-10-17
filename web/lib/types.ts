@@ -19,7 +19,7 @@ export type Attachment = {
 };
 
 export type Metrics = { reactions?: number | null; comments?: number | null; shares?: number | null;
-  views?: number | null; counted_at?: string | null; reply_count?: number | null };
+  views?: number | null; reads?: number | null; search_hits?: number | null; counted_at?: string | null; reply_count?: number | null };
 
 export type Source = {
   id: string; platform: string; content_type: string; url: string; url_kind: string;

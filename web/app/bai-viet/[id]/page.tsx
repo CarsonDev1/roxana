@@ -149,11 +149,19 @@ export default async function SourcePage({ params }: PageProps<"/bai-viet/[id]">
           <Card>
             <SectionTitle>Tương tác</SectionTitle>
             <div className="grid grid-cols-3 gap-2 text-center">
-              {([["Cảm xúc", m.reactions], ["Bình luận", m.comments], ["Chia sẻ", m.shares]] as const).map(([k, v]) => (
+              {(s.platform === "web"
+                ? ([["Lượt xem", m.views], ["Lượt đọc", m.reads], ["Lượt tìm kiếm", m.search_hits]] as const)
+                : ([["Cảm xúc", m.reactions], ["Bình luận", m.comments], ["Chia sẻ", m.shares]] as const)).map(([k, v]) => (
                 <div key={k} className="rounded-lg bg-surface-2 p-2"><p className="text-lg font-semibold">{fmtNumber(v)}</p><p className="text-xs text-muted">{k}</p></div>
               ))}
             </div>
             {m.counted_at && <p className="mt-2 text-xs text-muted">Đếm lúc {fmtTime(m.counted_at)}</p>}
+            {s.platform === "web" && (
+              <p className="mt-1 text-xs text-muted">
+                Lượt xem, lượt đọc: số do chính trang báo hiển thị lúc chụp — trang không hiện thì để “—”.
+                Lượt tìm kiếm: số lần bài xuất hiện trong kết quả tìm của các lần quét.
+              </p>
+            )}
           </Card>
           <Card>
             <SectionTitle>Phân loại</SectionTitle>

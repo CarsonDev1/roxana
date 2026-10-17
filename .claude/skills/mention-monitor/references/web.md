@@ -11,6 +11,8 @@ Chỉ đọc; không đăng ký, không bình luận, không vượt captcha/pay
 - Bổ sung bằng công cụ **WebSearch** (tìm theo các bên, tên pháp lý "Contentment Plaza", mốc tiến trình: toà án, công an,
   thanh tra, đối thoại, bàn giao…): thêm link vào `<run>/web/candidates.jsonl` với `"engine": "websearch"`.
 - Mỗi lượt ghi `discover_log.jsonl` (engine, query, year, results, new, error) → dùng làm `search_log` (`platform: "web"`).
+- `hits.jsonl`: mỗi lần một link xuất hiện trong kết quả của một lượt tìm (kể cả link đã có) → đếm ra `metrics.search_hits`
+  của bài. Link thêm tay bằng WebSearch (`candidates.jsonl`) tính một lần.
 
 ## 2. Chụp — `scripts/webscan/capture_articles.py <run>/web`
 
@@ -19,6 +21,8 @@ Mỗi bài → `<run>/web/bundles/<key>/`:
   cột bên, tin liên quan, bình luận. Bài dài > 5000px chụp thành nhiều phần liên tiếp (mỗi phần là một ảnh gốc).
 - `article.txt` nguyên văn · `article.html` bản HTML gốc · `meta.json` (link canonical, tiêu đề, tên báo, tác giả, giờ đăng
   từ meta/JSON-LD; không có thì ngày theo Google News → `posted_at_precision: "day"`).
+- `meta.json` có `views_raw` / `reads_raw`: số **lượt xem / lượt đọc do chính trang hiển thị** ("12.345 lượt xem", "Lượt đọc: 1,2K",
+  JSON-LD `interactionStatistic`), chỉ lấy dòng nằm quanh khối bài. Trang không hiện → `null` (không đoán).
 - Không nhắc tới vụ việc → `meta.json` có `"relevant": false`, không chụp. Chỉ trùng tên → danh sách loại trừ.
 - Khớp từ khoá theo chữ **có dấu** (viết không dấu vẫn khớp; "tường phòng" không khớp "Tường Phong") và theo **nguyên từ**.
   Tên trần "Roxana", "Tường Phong" (`weak_terms`) cũng là tên người/địa danh → chỉ tính khi bài có từ ngữ cảnh khác.
@@ -28,6 +32,7 @@ Mỗi bài → `<run>/web/bundles/<key>/`:
 ## 3. Ghi kho — `bundle_to_records.py` (`article_draft` / `apply_article`)
 
 `platform: "web"`, `content_type: "article"`, `author_kind: "page"`, `container_name` = tên báo, mã `WEB-P…`.
+`metrics`: `views` (lượt xem), `reads` (lượt đọc), `search_hits` (lượt tìm kiếm), `counted_at` = giờ chụp. Cập nhật về sau bằng `recheck.metrics`.
 Phân loại như Facebook (`classification.md`): đọc `article.txt`, ghi `{"source": {tone, claim_type, importance,
 importance_reason, topics, entities_mentioned}}`. Báo chính thống đưa tin tiến trình (thanh tra, toà, công an, đối thoại)
 → thêm `event` với `reliability: "bao_chi"`.

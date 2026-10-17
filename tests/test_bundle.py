@@ -159,6 +159,34 @@ def test_article_drafts(project, tmp_path, make_png):
     assert [e["kind"] for e in s["evidence"]] == ["post", "post"] and s["snapshot_file"].endswith("article.txt")
 
 
+def test_article_metrics_views_reads_search_hits(project, tmp_path, make_png):
+    from bundle_to_records import article_draft
+    b = _article(tmp_path, make_png)
+    meta = json.loads((b / "meta.json").read_text(encoding="utf-8"))
+    meta.update(views_raw="12.345", reads_raw="1,2K")
+    (b / "meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    web = b.parent.parent
+    (web / "captured_index.json").write_text(json.dumps({
+        "https://news.google.com/rss/articles/x": {"key": b.name, "relevant": True},
+        "https://news.google.com/rss/articles/y": {"key": b.name, "relevant": True, "same_as_existing": True},
+        "https://other": {"key": "zzz"}}), encoding="utf-8")
+    hits = [{"url": "https://news.google.com/rss/articles/x", "engine": "google_news", "query": "Roxana Plaza", "year": 2025},
+            {"url": "https://news.google.com/rss/articles/x", "engine": "google_news", "query": "Roxana Plaza", "year": None},
+            {"url": "https://news.google.com/rss/articles/x", "engine": "google_news", "query": "Roxana Plaza", "year": None},
+            {"url": "https://other", "engine": "ddg", "query": "q", "year": None}]
+    (web / "hits.jsonl").write_text(chr(10).join(json.dumps(h) for h in hits), encoding="utf-8")
+    m = article_draft(b)["metrics"]
+    # x: 2 lượt tìm riêng biệt (dòng lặp cùng lượt không tính lại); y chưa có trong hits.jsonl: tính 1 lần
+    assert (m["views"], m["reads"], m["search_hits"]) == (12345, 1200, 3)
+    assert m["counted_at"] == "2026-09-30T12:00:00+07:00"
+
+
+def test_article_metrics_unknown_when_not_shown(project, tmp_path, make_png):
+    from bundle_to_records import article_draft
+    m = article_draft(_article(tmp_path, make_png))["metrics"]
+    assert m["views"] is None and m["reads"] is None and m["search_hits"] is None
+
+
 def test_article_date_falls_back_to_news_feed_day(project, tmp_path, make_png):
     from bundle_to_records import article_draft
     s = article_draft(_article(tmp_path, make_png, published=None))
