@@ -203,6 +203,17 @@ class Exporter:
                         "container_name": x.get("container_name")})
         return out
 
+    def trends(self) -> dict | None:
+        """Google Trends theo nhóm từ khoá (trends.py ghi data/trends.json); chưa chạy hoặc hỏng → None."""
+        path = self.project.root / "data" / "trends.json"
+        if not path.is_file():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except ValueError:
+            self.warnings.append("data/trends.json không đọc được — bỏ qua phần Google Trends")
+            return None
+
     def build(self) -> dict:
         view = self.view
         sources = [self.source(s) for s in view.sources]
@@ -227,6 +238,7 @@ class Exporter:
             "people": self.people(view.sources + view.comments),
             "stats": self.stats(sources, comments),
             "evidence": self.evidence(),
+            "trends": self.trends(),
             "warnings": self.warnings,
         }
 

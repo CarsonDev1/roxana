@@ -20,6 +20,8 @@ export default async function Overview() {
   const unknown = st.by_month.find((m) => m.month === "unknown")?.count ?? 0;
   const newest = [...data.sources].filter((s) => s.importance === "cao")
     .sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? "")).slice(0, 4);
+  const trends = data.trends;
+  const trendMain = trends?.groups.find((g) => g.points.length > 0);
   const parties = data.parties.filter((p) => p.primary || (st.by_party[p.id] ?? 0) > 0);
 
   return (
@@ -99,6 +101,34 @@ export default async function Overview() {
           <p className="mt-3 text-xs text-muted">Không có nghĩa là đã tìm đủ — chỉ những giới hạn đã ghi nhận.</p>
         </Card>
       </div>
+
+      {trends && trendMain && (
+        <Card className="mt-4">
+          <BarChart title={`Mức quan tâm tìm kiếm trên Google — “${trendMain.keyword}” (36 tháng gần nhất)`} orientation="column" unit="điểm"
+            bars={trendMain.points.slice(-36).map((p) => ({ key: p.date, label: fmtMonth(p.date), value: p.value }))}
+            note={trends.note} />
+          <table className="mt-4 w-full text-sm">
+            <thead><tr className="text-left text-muted">
+              <th className="py-1 font-normal">Nhóm từ khoá (Google Trends)</th>
+              <th className="py-1 text-right font-normal">Tháng cao nhất</th>
+              <th className="py-1 text-right font-normal">TB 12 tháng gần nhất</th>
+            </tr></thead>
+            <tbody>
+              {trends.groups.map((g) => (
+                <tr key={g.group} className="border-t border-line">
+                  <td className="py-1">{g.label} <span className="text-xs text-muted">“{g.keyword}”</span></td>
+                  {g.error ? <td colSpan={2} className="py-1 text-right text-xs text-muted">Không lấy được ({g.error})</td>
+                    : g.peak_month ? (<>
+                      <td className="tabular py-1 text-right">{fmtMonth(g.peak_month)}</td>
+                      <td className="tabular py-1 text-right">{g.avg_last_12_months ?? "—"}</td>
+                    </>) : <td colSpan={2} className="py-1 text-right text-xs text-muted">Lượt tìm quá ít, Google không có số liệu</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-muted">Nguồn: {trends.source} ({trends.geo}), lấy lúc {fmtTime(trends.fetched_at)}.</p>
+        </Card>
+      )}
 
       <div className="mt-6">
         <div className="mb-3 flex items-baseline justify-between">

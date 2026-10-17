@@ -37,6 +37,7 @@ Chạy trong thư mục dự án (thư mục mở Claude Code, chứa `.claude` 
 | `python .claude/skills/mention-monitor/scripts/add_record.py check --url <url>` / `--text "<đoạn chữ>"` | đã có trong kho chưa |
 | `python .claude/skills/mention-monitor/scripts/add_record.py add --run <RUN> --json <file.json>` | ghi bản ghi (1 object hoặc mảng) |
 | `python .claude/skills/mention-monitor/scripts/export_site.py` | xuất dữ liệu cho **web xem kết quả** (`output/site/data.json`) — đầu ra chính |
+| `python .claude/skills/mention-monitor/scripts/trends.py` | lấy **Google Trends** (mức quan tâm tìm kiếm theo tháng, tương đối 0–100) cho từng nhóm từ khoá → `data/trends.json`, hiện ở trang Tổng quan sau `export_site.py`. Không phải số liệu theo từng bài |
 | `cd web && npm run start` (lần đầu / sau khi sửa code web: `npm install && npm run build`) | mở web tại http://127.0.0.1:3000 (chỉ máy này truy cập được) |
 | `python .claude/skills/mention-monitor/scripts/build_excel.py` | (tuỳ chọn, chạy tay) file Excel khi cần nộp file cho Thừa phát lại/luật sư |
 | `python .claude/skills/mention-monitor/scripts/status.py report --run <RUN>` | viết `runs/<RUN>/report.md` |

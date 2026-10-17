@@ -94,11 +94,17 @@ export type Stats = {
   gaps: { id: string; section: string | null; query: string | null; issue: string }[];
 };
 
+export type TrendGroup = { group: string; label: string; keyword: string | null; error: string | null;
+  points: { date: string; value: number; partial: boolean }[]; peak_month?: string | null; peak_value?: number | null;
+  avg_last_12_months?: number | null; last_month?: string | null; last_value?: number | null };
+export type Trends = { source: string; geo: string; from: string; to: string; fetched_at: string; note: string;
+  groups: TrendGroup[] };
+
 export type SiteData = {
   schema_version: number; generated_at: string; project_name: string; disclaimer: string | null;
   labels: Record<string, Record<string, string>>; descriptions: Record<string, Record<string, string>>;
   keyword_groups: { id: string; label: string }[]; parties: Party[];
   sources: Source[]; comments: Comment[]; containers: Container[]; events: Event[]; search_logs: SearchLog[];
   changes: Change[]; exclusions: Exclusion[]; people: Person[]; stats: Stats; evidence: EvidenceItem[];
-  warnings: string[];
+  trends?: Trends | null; warnings: string[];
 };
